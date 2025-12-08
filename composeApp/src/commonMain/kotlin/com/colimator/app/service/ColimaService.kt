@@ -1,5 +1,9 @@
 package com.colimator.app.service
 
+import com.colimator.app.model.MountType
+import com.colimator.app.model.Profile
+import com.colimator.app.model.ProfileCreateConfig
+import com.colimator.app.model.VmType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -16,10 +20,13 @@ class ColimaService(private val shell: ShellExecutor) {
         private const val QUICK_TIMEOUT = 30L
         
         /** Timeout for start command (can take minutes for first boot or image pull) */
-        private const val START_TIMEOUT = 180L
+        private const val START_TIMEOUT = 300L
         
         /** Timeout for stop command */
         private const val STOP_TIMEOUT = 60L
+        
+        /** Timeout for delete command */
+        private const val DELETE_TIMEOUT = 30L
     }
 
     suspend fun isInstalled(): Boolean {
@@ -27,19 +34,78 @@ class ColimaService(private val shell: ShellExecutor) {
         return result.isSuccess()
     }
 
-    suspend fun getStatus(): VmStatus {
-        // Use --json flag (not --output json) for JSON output
-        val result = shell.execute("colima", listOf("status", "--json"), QUICK_TIMEOUT)
-        // When colima is running, status returns exit code 0
-        // When colima is stopped, status returns exit code 1
+    /**
+     * List all Colima profiles.
+     */
+    suspend fun listProfiles(): List<Profile> {
+        val result = shell.execute("colima", listOf("list", "--json"), QUICK_TIMEOUT)
+        if (!result.isSuccess()) return emptyList()
+        
+        return try {
+            // colima list --json outputs one JSON object per line
+            result.stdout
+                .lines()
+                .filter { it.isNotBlank() }
+                .mapNotNull { line ->
+                    try {
+                        val entry = json.decodeFromString<ColimaListEntryJson>(line)
+                        Profile(
+                            name = entry.name,
+                            status = parseStatus(entry.status),
+                            cpuCores = entry.cpu,
+                            memoryBytes = entry.memory,
+                            diskBytes = entry.disk,
+                            isActive = entry.status.lowercase() == "running"
+                        )
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    
+    private fun parseStatus(status: String): VmStatus {
+        return when (status.lowercase()) {
+            "running" -> VmStatus.Running
+            "stopped" -> VmStatus.Stopped
+            "starting" -> VmStatus.Starting
+            "stopping" -> VmStatus.Stopping
+            else -> VmStatus.Unknown
+        }
+    }
+
+    /**
+     * Get status for a specific profile.
+     */
+    suspend fun getStatus(profileName: String? = null): VmStatus {
+        val args = buildList {
+            add("status")
+            add("--json")
+            profileName?.let { 
+                add("--profile")
+                add(it)
+            }
+        }
+        val result = shell.execute("colima", args, QUICK_TIMEOUT)
         return if (result.isSuccess()) VmStatus.Running else VmStatus.Stopped
     }
     
     /**
-     * Get detailed VM configuration. Returns null if VM is not running.
+     * Get detailed VM configuration for a specific profile.
+     * Returns null if VM is not running.
      */
-    suspend fun getConfig(): ColimaConfig? {
-        val result = shell.execute("colima", listOf("status", "--json"), QUICK_TIMEOUT)
+    suspend fun getConfig(profileName: String? = null): ColimaConfig? {
+        val args = buildList {
+            add("status")
+            add("--json")
+            profileName?.let { 
+                add("--profile")
+                add(it)
+            }
+        }
+        val result = shell.execute("colima", args, QUICK_TIMEOUT)
         if (!result.isSuccess()) return null
         
         return try {
@@ -59,11 +125,56 @@ class ColimaService(private val shell: ShellExecutor) {
         }
     }
 
-    suspend fun start(): CommandResult = 
-        shell.execute("colima", listOf("start"), START_TIMEOUT)
+    /**
+     * Start a profile. Creates new profile if config provided and profile doesn't exist.
+     */
+    suspend fun start(profileName: String? = null, config: ProfileCreateConfig? = null): CommandResult {
+        val args = buildList {
+            add("start")
+            profileName?.let { 
+                add("--profile")
+                add(it)
+            }
+            config?.let { cfg ->
+                add("--cpu")
+                add(cfg.cpuCores.toString())
+                add("--memory")
+                add(cfg.memoryGb.toString())
+                add("--disk")
+                add(cfg.diskGb.toString())
+                add("--vm-type")
+                add(cfg.vmType.cliValue)
+                add("--mount-type")
+                add(cfg.mountType.cliValue)
+                if (cfg.kubernetes) {
+                    add("--kubernetes")
+                }
+            }
+        }
+        return shell.execute("colima", args, START_TIMEOUT)
+    }
     
-    suspend fun stop(): CommandResult = 
-        shell.execute("colima", listOf("stop"), STOP_TIMEOUT)
+    /**
+     * Stop a profile.
+     */
+    suspend fun stop(profileName: String? = null): CommandResult {
+        val args = buildList {
+            add("stop")
+            profileName?.let { 
+                add("--profile")
+                add(it)
+            }
+        }
+        return shell.execute("colima", args, STOP_TIMEOUT)
+    }
+    
+    /**
+     * Delete a profile. Profile must be stopped first.
+     */
+    suspend fun delete(profileName: String): CommandResult {
+        val args = listOf("delete", "--profile", profileName, "--force")
+        return shell.execute("colima", args, DELETE_TIMEOUT)
+    }
 }
 
 enum class VmStatus {
@@ -104,3 +215,18 @@ internal data class ColimaStatusJson(
     @SerialName("mount_type") val mountType: String = "",
     val kubernetes: Boolean = false
 )
+
+/**
+ * JSON structure for colima list --json output (one entry per line).
+ */
+@Serializable
+internal data class ColimaListEntryJson(
+    val name: String = "default",
+    val status: String = "Stopped",
+    val cpu: Int = 0,
+    val memory: Long = 0,
+    val disk: Long = 0,
+    val arch: String = "",
+    val runtime: String = ""
+)
+

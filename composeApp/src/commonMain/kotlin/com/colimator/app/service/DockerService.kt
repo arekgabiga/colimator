@@ -12,6 +12,27 @@ class DockerService(private val shell: ShellExecutor) {
     private val json = Json { ignoreUnknownKeys = true }
     
     /**
+     * Get the Docker context name for a Colima profile.
+     * - Default profile (null or "default") uses context "colima"
+     * - Named profiles use context "colima-<name>"
+     */
+    private fun getContextForProfile(profileName: String?): String {
+        return if (profileName == null || profileName == "default") {
+            "colima"
+        } else {
+            "colima-$profileName"
+        }
+    }
+    
+    /**
+     * Build command arguments with --context flag prepended.
+     */
+    private fun withContext(profileName: String?, args: List<String>): List<String> {
+        val context = getContextForProfile(profileName)
+        return listOf("--context", context) + args
+    }
+    
+    /**
      * Check if docker CLI is installed and accessible.
      */
     suspend fun isInstalled(): Boolean {
@@ -23,8 +44,9 @@ class DockerService(private val shell: ShellExecutor) {
      * List all containers (running and stopped).
      * Parses output from 'docker ps -a --format json'.
      */
-    suspend fun listContainers(): List<Container> {
-        val result = shell.execute("docker", listOf("ps", "-a", "--format", "json"))
+    suspend fun listContainers(profileName: String? = null): List<Container> {
+        val args = withContext(profileName, listOf("ps", "-a", "--format", "json"))
+        val result = shell.execute("docker", args)
         if (!result.isSuccess()) {
             return emptyList()
         }
@@ -46,8 +68,9 @@ class DockerService(private val shell: ShellExecutor) {
      * List all Docker images.
      * Parses output from 'docker images --format json'.
      */
-    suspend fun listImages(): List<DockerImage> {
-        val result = shell.execute("docker", listOf("images", "--format", "json"))
+    suspend fun listImages(profileName: String? = null): List<DockerImage> {
+        val args = withContext(profileName, listOf("images", "--format", "json"))
+        val result = shell.execute("docker", args)
         if (!result.isSuccess()) {
             return emptyList()
         }
@@ -68,21 +91,24 @@ class DockerService(private val shell: ShellExecutor) {
     /**
      * Start a stopped container.
      */
-    suspend fun startContainer(id: String): CommandResult {
-        return shell.execute("docker", listOf("start", id))
+    suspend fun startContainer(id: String, profileName: String? = null): CommandResult {
+        val args = withContext(profileName, listOf("start", id))
+        return shell.execute("docker", args)
     }
     
     /**
      * Stop a running container.
      */
-    suspend fun stopContainer(id: String): CommandResult {
-        return shell.execute("docker", listOf("stop", id))
+    suspend fun stopContainer(id: String, profileName: String? = null): CommandResult {
+        val args = withContext(profileName, listOf("stop", id))
+        return shell.execute("docker", args)
     }
     
     /**
      * Remove a container (must be stopped first).
      */
-    suspend fun removeContainer(id: String): CommandResult {
-        return shell.execute("docker", listOf("rm", id))
+    suspend fun removeContainer(id: String, profileName: String? = null): CommandResult {
+        val args = withContext(profileName, listOf("rm", id))
+        return shell.execute("docker", args)
     }
 }

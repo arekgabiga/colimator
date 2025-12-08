@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,7 +47,7 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Colima Status: ${state.vmStatus}",
+                    text = "Colima Status (${state.activeProfile}): ${state.vmStatus}",
                     style = MaterialTheme.typography.headlineMedium
                 )
                 if (state.isLoading) {
@@ -86,6 +88,17 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                 ) {
                     Text("Refresh")
                 }
+                
+                // Delete button - available for all profiles
+                Button(
+                    onClick = viewModel::confirmDeleteVm,
+                    enabled = !state.isLoading,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete VM")
+                }
             }
         }
 
@@ -103,6 +116,47 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
             ) {
                 Text(error)
             }
+        }
+        
+        // Delete confirmation dialog
+        if (state.showDeleteConfirmation) {
+            AlertDialog(
+                onDismissRequest = { viewModel.cancelDeleteVm() },
+                title = { Text("Delete VM") },
+                text = { 
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Profile: ${state.activeProfile}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Text("Deleting this profile will permanently remove:")
+                        Text("• The virtual machine (VM) for this profile")
+                        Text("• All Docker containers inside this VM")
+                        Text("• All Docker images stored in this VM")
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "This action cannot be undone.",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { viewModel.deleteVm() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.cancelDeleteVm() }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }

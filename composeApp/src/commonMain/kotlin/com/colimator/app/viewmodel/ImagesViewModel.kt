@@ -2,6 +2,7 @@ package com.colimator.app.viewmodel
 
 import com.colimator.app.model.DockerImage
 import com.colimator.app.model.DockerImageWithUsage
+import com.colimator.app.service.ActiveProfileRepository
 import com.colimator.app.service.DockerService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,19 +29,48 @@ data class ImagesState(
     val sortDirection: SortDirection = SortDirection.ASC,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val sortVersion: Int = 0  // Incremented on sort change to trigger scroll reset
+    val sortVersion: Int = 0,  // Incremented on sort change to trigger scroll reset
+    val activeProfile: String = "default"
 )
 
 /**
  * ViewModel for managing Docker images list with sorting.
  */
-class ImagesViewModel(private val dockerService: DockerService) : BaseViewModel() {
+class ImagesViewModel(
+    private val dockerService: DockerService,
+    private val activeProfileRepository: ActiveProfileRepository
+) : BaseViewModel() {
     
     private val _state = MutableStateFlow(ImagesState())
     val state: StateFlow<ImagesState> = _state.asStateFlow()
     
     init {
-        refresh()
+        // Subscribe to profile changes
+        viewModelScope.launch {
+            activeProfileRepository.activeProfile.collect { profile ->
+                val profileName = profile ?: "default"
+                // Clear existing data immediately when profile changes
+                _state.update { 
+                    it.copy(
+                        images = emptyList(), 
+                        activeProfile = profileName
+                    ) 
+                }
+                // Refresh for new profile
+                refresh()
+            }
+        }
+    }
+    
+    /**
+     * Called when screen becomes visible. Forces refresh if profile changed.
+     */
+    fun onScreenVisible() {
+        if (activeProfileRepository.hasProfileChanged()) {
+            _state.update { it.copy(images = emptyList()) }
+            refresh()
+            activeProfileRepository.acknowledgeProfileChange()
+        }
     }
     
     /**
@@ -50,9 +80,10 @@ class ImagesViewModel(private val dockerService: DockerService) : BaseViewModel(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             try {
+                val profileName = activeProfileRepository.activeProfile.value
                 // Fetch images and containers in parallel
-                val images = dockerService.listImages()
-                val containers = dockerService.listContainers()
+                val images = dockerService.listImages(profileName)
+                val containers = dockerService.listContainers(profileName)
                 
                 // Get set of image names used by containers
                 val usedImages = containers.map { it.image }.toSet()
@@ -120,3 +151,4 @@ class ImagesViewModel(private val dockerService: DockerService) : BaseViewModel(
         }
     }
 }
+

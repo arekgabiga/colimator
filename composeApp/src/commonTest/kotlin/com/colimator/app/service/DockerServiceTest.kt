@@ -37,7 +37,7 @@ class DockerServiceTest {
     fun `listContainers returns empty list when no containers`() = runBlocking {
         mockExecutor.mockResponse(
             "docker", 
-            listOf("ps", "-a", "--format", "json"),
+            listOf("--context", "colima", "ps", "-a", "--format", "json"),
             CommandResult(0, "", "")
         )
         
@@ -51,7 +51,7 @@ class DockerServiceTest {
         val containerJson = """{"ID":"abc123","Names":"nginx","Image":"nginx:latest","Status":"Up 2 hours","Ports":"80/tcp","State":"running"}"""
         mockExecutor.mockResponse(
             "docker", 
-            listOf("ps", "-a", "--format", "json"),
+            listOf("--context", "colima", "ps", "-a", "--format", "json"),
             CommandResult(0, containerJson, "")
         )
         
@@ -73,7 +73,7 @@ class DockerServiceTest {
         
         mockExecutor.mockResponse(
             "docker", 
-            listOf("ps", "-a", "--format", "json"),
+            listOf("--context", "colima", "ps", "-a", "--format", "json"),
             CommandResult(0, json, "")
         )
         
@@ -85,10 +85,25 @@ class DockerServiceTest {
     }
     
     @Test
+    fun `listContainers uses profile-specific context`() = runBlocking {
+        val containerJson = """{"ID":"dev123","Names":"dev-container","Image":"alpine","Status":"Up","Ports":"","State":"running"}"""
+        mockExecutor.mockResponse(
+            "docker", 
+            listOf("--context", "colima-dev", "ps", "-a", "--format", "json"),
+            CommandResult(0, containerJson, "")
+        )
+        
+        val containers = service.listContainers("dev")
+        
+        assertEquals(1, containers.size)
+        assertEquals("dev123", containers[0].id)
+    }
+    
+    @Test
     fun `startContainer calls docker start with id`() = runBlocking {
         mockExecutor.mockResponse(
             "docker", 
-            listOf("start", "abc123"),
+            listOf("--context", "colima", "start", "abc123"),
             CommandResult(0, "abc123", "")
         )
         
@@ -101,7 +116,7 @@ class DockerServiceTest {
     fun `stopContainer calls docker stop with id`() = runBlocking {
         mockExecutor.mockResponse(
             "docker", 
-            listOf("stop", "abc123"),
+            listOf("--context", "colima", "stop", "abc123"),
             CommandResult(0, "abc123", "")
         )
         
@@ -114,7 +129,7 @@ class DockerServiceTest {
     fun `removeContainer calls docker rm with id`() = runBlocking {
         mockExecutor.mockResponse(
             "docker", 
-            listOf("rm", "abc123"),
+            listOf("--context", "colima", "rm", "abc123"),
             CommandResult(0, "abc123", "")
         )
         
@@ -129,7 +144,7 @@ class DockerServiceTest {
     fun `listImages returns empty list when no images`() = runBlocking {
         mockExecutor.mockResponse(
             "docker", 
-            listOf("images", "--format", "json"),
+            listOf("--context", "colima", "images", "--format", "json"),
             CommandResult(0, "", "")
         )
         
@@ -143,7 +158,7 @@ class DockerServiceTest {
         val imageJson = """{"ID":"sha256:abc123","Repository":"nginx","Tag":"latest","Size":"142MB"}"""
         mockExecutor.mockResponse(
             "docker", 
-            listOf("images", "--format", "json"),
+            listOf("--context", "colima", "images", "--format", "json"),
             CommandResult(0, imageJson, "")
         )
         
@@ -167,7 +182,7 @@ class DockerServiceTest {
         
         mockExecutor.mockResponse(
             "docker", 
-            listOf("images", "--format", "json"),
+            listOf("--context", "colima", "images", "--format", "json"),
             CommandResult(0, json, "")
         )
         
@@ -179,5 +194,20 @@ class DockerServiceTest {
         // Verify size parsing
         assertEquals(1_190_000_000L, images[0].sizeInBytes)
         assertEquals(32_000_000L, images[1].sizeInBytes)
+    }
+    
+    @Test
+    fun `listImages uses profile-specific context`() = runBlocking {
+        val imageJson = """{"ID":"sha256:dev123","Repository":"alpine","Tag":"latest","Size":"5MB"}"""
+        mockExecutor.mockResponse(
+            "docker", 
+            listOf("--context", "colima-dev", "images", "--format", "json"),
+            CommandResult(0, imageJson, "")
+        )
+        
+        val images = service.listImages("dev")
+        
+        assertEquals(1, images.size)
+        assertEquals("sha256:dev123", images[0].id)
     }
 }

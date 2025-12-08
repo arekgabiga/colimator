@@ -1,6 +1,7 @@
 package com.colimator.app.viewmodel
 
 import com.colimator.app.model.Container
+import com.colimator.app.service.ActiveProfileRepository
 import com.colimator.app.service.DockerService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,19 +23,48 @@ data class ContainersState(
     val sortDirection: SortDirection = SortDirection.ASC,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val sortVersion: Int = 0  // Incremented on sort change to trigger scroll reset
+    val sortVersion: Int = 0,  // Incremented on sort change to trigger scroll reset
+    val activeProfile: String = "default"
 )
 
 /**
  * ViewModel for managing Docker container list and operations.
  */
-class ContainersViewModel(private val dockerService: DockerService) : BaseViewModel() {
+class ContainersViewModel(
+    private val dockerService: DockerService,
+    private val activeProfileRepository: ActiveProfileRepository
+) : BaseViewModel() {
     
     private val _state = MutableStateFlow(ContainersState())
     val state: StateFlow<ContainersState> = _state.asStateFlow()
     
     init {
-        refresh()
+        // Subscribe to profile changes
+        viewModelScope.launch {
+            activeProfileRepository.activeProfile.collect { profile ->
+                val profileName = profile ?: "default"
+                // Clear existing data immediately when profile changes
+                _state.update { 
+                    it.copy(
+                        containers = emptyList(), 
+                        activeProfile = profileName
+                    ) 
+                }
+                // Refresh for new profile
+                refresh()
+            }
+        }
+    }
+    
+    /**
+     * Called when screen becomes visible. Forces refresh if profile changed.
+     */
+    fun onScreenVisible() {
+        if (activeProfileRepository.hasProfileChanged()) {
+            _state.update { it.copy(containers = emptyList()) }
+            refresh()
+            activeProfileRepository.acknowledgeProfileChange()
+        }
     }
     
     /**
@@ -44,7 +74,8 @@ class ContainersViewModel(private val dockerService: DockerService) : BaseViewMo
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             try {
-                val containers = dockerService.listContainers()
+                val profileName = activeProfileRepository.activeProfile.value
+                val containers = dockerService.listContainers(profileName)
                 val sorted = sortContainers(containers, _state.value.sortField, _state.value.sortDirection)
                 _state.update { it.copy(containers = sorted, isLoading = false) }
             } catch (e: Exception) {
@@ -95,7 +126,8 @@ class ContainersViewModel(private val dockerService: DockerService) : BaseViewMo
     fun startContainer(id: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val result = dockerService.startContainer(id)
+            val profileName = activeProfileRepository.activeProfile.value
+            val result = dockerService.startContainer(id, profileName)
             if (!result.isSuccess()) {
                 _state.update { it.copy(error = result.stderr, isLoading = false) }
             } else {
@@ -110,7 +142,8 @@ class ContainersViewModel(private val dockerService: DockerService) : BaseViewMo
     fun stopContainer(id: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val result = dockerService.stopContainer(id)
+            val profileName = activeProfileRepository.activeProfile.value
+            val result = dockerService.stopContainer(id, profileName)
             if (!result.isSuccess()) {
                 _state.update { it.copy(error = result.stderr, isLoading = false) }
             } else {
@@ -125,7 +158,8 @@ class ContainersViewModel(private val dockerService: DockerService) : BaseViewMo
     fun removeContainer(id: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val result = dockerService.removeContainer(id)
+            val profileName = activeProfileRepository.activeProfile.value
+            val result = dockerService.removeContainer(id, profileName)
             if (!result.isSuccess()) {
                 _state.update { it.copy(error = result.stderr, isLoading = false) }
             } else {
@@ -141,3 +175,4 @@ class ContainersViewModel(private val dockerService: DockerService) : BaseViewMo
         _state.update { it.copy(error = null) }
     }
 }
+

@@ -8,6 +8,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
+import com.colimator.app.service.ActiveProfileRepository
 import com.colimator.app.service.ColimaService
 import com.colimator.app.service.DockerService
 import com.colimator.app.service.JvmShellExecutor
@@ -15,6 +16,7 @@ import com.colimator.app.viewmodel.ContainersViewModel
 import com.colimator.app.viewmodel.DashboardViewModel
 import com.colimator.app.viewmodel.ImagesViewModel
 import com.colimator.app.viewmodel.OnboardingViewModel
+import com.colimator.app.viewmodel.ProfilesViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -29,10 +31,16 @@ fun main() = application {
     val shellExecutor = JvmShellExecutor()
     val colimaService = ColimaService(shellExecutor)
     val dockerService = DockerService(shellExecutor)
+    
+    // Shared profile repository
+    val activeProfileRepository = ActiveProfileRepository()
+    
+    // ViewModels with profile awareness
     val onboardingViewModel = OnboardingViewModel(colimaService, dockerService)
-    val dashboardViewModel = DashboardViewModel(colimaService)
-    val containersViewModel = ContainersViewModel(dockerService)
-    val imagesViewModel = ImagesViewModel(dockerService)
+    val dashboardViewModel = DashboardViewModel(colimaService, activeProfileRepository)
+    val containersViewModel = ContainersViewModel(dockerService, activeProfileRepository)
+    val imagesViewModel = ImagesViewModel(dockerService, activeProfileRepository)
+    val profilesViewModel = ProfilesViewModel(colimaService, activeProfileRepository)
     
     // Coroutine scope for tray actions
     val trayScope = CoroutineScope(Dispatchers.IO)
@@ -51,13 +59,17 @@ fun main() = application {
         val popup = PopupMenu().apply {
             add(MenuItem("Start Colima").apply {
                 addActionListener {
-                    trayScope.launch { colimaService.start() }
+                    trayScope.launch { 
+                        colimaService.start(activeProfileRepository.activeProfile.value) 
+                    }
                     dashboardViewModel.refreshStatus()
                 }
             })
             add(MenuItem("Stop Colima").apply {
                 addActionListener {
-                    trayScope.launch { colimaService.stop() }
+                    trayScope.launch { 
+                        colimaService.stop(activeProfileRepository.activeProfile.value) 
+                    }
                     dashboardViewModel.refreshStatus()
                 }
             })
@@ -114,6 +126,8 @@ fun main() = application {
             dashboardViewModel = dashboardViewModel,
             containersViewModel = containersViewModel,
             imagesViewModel = imagesViewModel,
+            profilesViewModel = profilesViewModel,
+            activeProfileRepository = activeProfileRepository,
             onExit = ::exitApplication
         )
     }
@@ -143,3 +157,4 @@ private fun createTrayIcon(): BufferedImage {
     g.dispose()
     return image
 }
+
