@@ -6,9 +6,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
@@ -20,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.colimator.app.service.ColimaConfig
 import com.colimator.app.service.VmStatus
 import com.colimator.app.viewmodel.DashboardViewModel
 
@@ -50,7 +56,13 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                 }
             }
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // VM Configuration card (only when running)
+            state.vmConfig?.let { config ->
+                VmConfigCard(config)
+                Spacer(modifier = Modifier.height(24.dp))
+            }
 
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Button(
@@ -94,3 +106,81 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
         }
     }
 }
+
+@Composable
+private fun VmConfigCard(config: ColimaConfig) {
+    Card(
+        modifier = Modifier.fillMaxWidth(0.8f),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "VM Configuration",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                ConfigColumn(
+                    items = listOf(
+                        "CPU" to "${config.cpuCores} cores",
+                        "Memory" to "%.1f GB".format(config.memoryGb),
+                        "Disk" to "%.0f GB".format(config.diskGb)
+                    )
+                )
+                ConfigColumn(
+                    items = listOf(
+                        "Architecture" to config.architecture,
+                        "Runtime" to config.runtime,
+                        "Mount Type" to config.mountType
+                    )
+                )
+            }
+            
+            // Driver at the bottom (full width as it can be long)
+            ConfigItem("Driver", config.driver)
+            
+            if (config.kubernetes) {
+                ConfigItem("Kubernetes", "Enabled")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConfigColumn(items: List<Pair<String, String>>) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items.forEach { (label, value) ->
+            ConfigItem(label, value)
+        }
+    }
+}
+
+@Composable
+private fun ConfigItem(label: String, value: String) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "$label:",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+

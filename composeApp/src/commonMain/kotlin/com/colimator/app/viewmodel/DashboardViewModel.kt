@@ -1,5 +1,6 @@
 package com.colimator.app.viewmodel
 
+import com.colimator.app.service.ColimaConfig
 import com.colimator.app.service.ColimaService
 import com.colimator.app.service.VmStatus
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +13,7 @@ import kotlinx.coroutines.launch
  */
 data class DashboardState(
     val vmStatus: VmStatus = VmStatus.Unknown,
+    val vmConfig: ColimaConfig? = null,
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -32,7 +34,8 @@ class DashboardViewModel(private val colimaService: ColimaService) : BaseViewMod
             _state.update { it.copy(isLoading = true, error = null) }
             try {
                 val status = colimaService.getStatus()
-                _state.update { it.copy(vmStatus = status, isLoading = false) }
+                val config = if (status == VmStatus.Running) colimaService.getConfig() else null
+                _state.update { it.copy(vmStatus = status, vmConfig = config, isLoading = false) }
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message ?: "Failed to get status", isLoading = false) }
             }
