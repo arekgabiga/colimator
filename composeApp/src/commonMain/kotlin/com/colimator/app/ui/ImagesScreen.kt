@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.unit.dp
 import com.colimator.app.model.DockerImageWithUsage
 import com.colimator.app.viewmodel.ImageSortField
@@ -216,16 +217,20 @@ private fun ImageRow(imageWithUsage: DockerImageWithUsage) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Image details
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = image.displayName,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Text(
-                    text = image.shortId,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Box(modifier = Modifier.weight(1f)) {
+                SelectionContainer {
+                    Column {
+                        Text(
+                            text = image.displayName,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = image.shortId,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
             // Size

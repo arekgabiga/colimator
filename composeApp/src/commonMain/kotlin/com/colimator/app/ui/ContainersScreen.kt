@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.unit.dp
 import com.colimator.app.model.Container
 import com.colimator.app.viewmodel.ContainersViewModel
@@ -164,22 +165,24 @@ private fun ContainerRow(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 // Container details
-                Column {
-                    Text(
-                        text = container.displayName,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = container.image,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (container.ports.isNotBlank()) {
+                SelectionContainer {
+                    Column {
                         Text(
-                            text = container.ports,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
+                            text = container.displayName,
+                            style = MaterialTheme.typography.bodyLarge
                         )
+                        Text(
+                            text = container.image,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (container.ports.isNotBlank()) {
+                            Text(
+                                text = container.ports,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }
