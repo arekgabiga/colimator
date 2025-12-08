@@ -1,5 +1,6 @@
 package com.colimator.app.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
@@ -27,22 +29,32 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.unit.dp
 import com.colimator.app.model.Container
+import com.colimator.app.viewmodel.ContainerSortField
 import com.colimator.app.viewmodel.ContainersViewModel
+import com.colimator.app.viewmodel.SortDirection
 
 /**
- * Screen displaying Docker containers list with actions.
+ * Screen displaying Docker containers list with sorting and actions.
  */
 @Composable
 fun ContainersScreen(viewModel: ContainersViewModel) {
     val state by viewModel.state.collectAsState()
+    val listState = rememberLazyListState()
+    
+    // Scroll to top when sort changes
+    LaunchedEffect(state.sortVersion) {
+        listState.animateScrollToItem(0)
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -65,6 +77,15 @@ fun ContainersScreen(viewModel: ContainersViewModel) {
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            // Column headers for sorting
+            ContainerSortableHeader(
+                currentField = state.sortField,
+                currentDirection = state.sortDirection,
+                onSortChange = { viewModel.setSortField(it) }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Loading indicator
             if (state.isLoading && state.containers.isEmpty()) {
@@ -91,6 +112,7 @@ fun ContainersScreen(viewModel: ContainersViewModel) {
             // Container list
             else {
                 LazyColumn(
+                    state = listState,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(state.containers, key = { it.id }) { container ->
@@ -125,6 +147,70 @@ fun ContainersScreen(viewModel: ContainersViewModel) {
 }
 
 /**
+ * Sortable column headers for containers table.
+ */
+@Composable
+private fun ContainerSortableHeader(
+    currentField: ContainerSortField,
+    currentDirection: SortDirection,
+    onSortChange: (ContainerSortField) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Name column
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .clickable { onSortChange(ContainerSortField.NAME) },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Name",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (currentField == ContainerSortField.NAME) FontWeight.Bold else FontWeight.Normal
+            )
+            if (currentField == ContainerSortField.NAME) {
+                Text(
+                    text = if (currentDirection == SortDirection.ASC) " ▲" else " ▼",
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
+
+        // Status column
+        Row(
+            modifier = Modifier
+                .width(80.dp)
+                .clickable { onSortChange(ContainerSortField.STATUS) },
+            horizontalArrangement = Arrangement.Start,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Status",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (currentField == ContainerSortField.STATUS) FontWeight.Bold else FontWeight.Normal
+            )
+            if (currentField == ContainerSortField.STATUS) {
+                Text(
+                    text = if (currentDirection == SortDirection.ASC) " ▲" else " ▼",
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
+
+        // Actions column (no sorting)
+        Text(
+            text = "Actions",
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.width(100.dp)
+        )
+    }
+}
+
+/**
  * Single container row with status indicator and action buttons.
  */
 @Composable
@@ -145,26 +231,8 @@ private fun ContainerRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Status indicator and info
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                // Status dot
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .padding(end = 0.dp)
-                ) {
-                    Text(
-                        text = if (container.isRunning) "🟢" else "🔴",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                // Container details
+            // Container name and details (matches Name column)
+            Box(modifier = Modifier.weight(1f)) {
                 SelectionContainer {
                     Column {
                         Text(
@@ -187,8 +255,22 @@ private fun ContainerRow(
                 }
             }
 
-            // Action buttons
-            Row {
+            // Status indicator (matches Status column - 80.dp width)
+            Box(
+                modifier = Modifier.width(80.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Text(
+                    text = if (container.isRunning) "🟢 Running" else "🔴 Stopped",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            // Action buttons (matches Actions column - 100.dp width)
+            Row(
+                modifier = Modifier.width(100.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
                 if (container.isRunning) {
                     IconButton(
                         onClick = onStop,
@@ -230,3 +312,4 @@ private fun ContainerRow(
         }
     }
 }
+

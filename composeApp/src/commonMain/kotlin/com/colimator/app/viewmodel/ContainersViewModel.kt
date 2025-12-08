@@ -9,12 +9,20 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
+ * Sort field options for containers list.
+ */
+enum class ContainerSortField { NAME, STATUS }
+
+/**
  * State for the containers list screen.
  */
 data class ContainersState(
     val containers: List<Container> = emptyList(),
+    val sortField: ContainerSortField = ContainerSortField.NAME,
+    val sortDirection: SortDirection = SortDirection.ASC,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val sortVersion: Int = 0  // Incremented on sort change to trigger scroll reset
 )
 
 /**
@@ -37,10 +45,47 @@ class ContainersViewModel(private val dockerService: DockerService) : BaseViewMo
             _state.update { it.copy(isLoading = true, error = null) }
             try {
                 val containers = dockerService.listContainers()
-                _state.update { it.copy(containers = containers, isLoading = false) }
+                val sorted = sortContainers(containers, _state.value.sortField, _state.value.sortDirection)
+                _state.update { it.copy(containers = sorted, isLoading = false) }
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message ?: "Failed to load containers", isLoading = false) }
             }
+        }
+    }
+    
+    /**
+     * Set sort field. Toggles direction if same field, resets to ASC if different.
+     */
+    fun setSortField(field: ContainerSortField) {
+        _state.update { current ->
+            val newDirection = if (current.sortField == field) {
+                if (current.sortDirection == SortDirection.ASC) SortDirection.DESC else SortDirection.ASC
+            } else {
+                SortDirection.ASC
+            }
+            val sorted = sortContainers(current.containers, field, newDirection)
+            current.copy(
+                containers = sorted,
+                sortField = field,
+                sortDirection = newDirection,
+                sortVersion = current.sortVersion + 1
+            )
+        }
+    }
+    
+    private fun sortContainers(
+        containers: List<Container>,
+        field: ContainerSortField,
+        direction: SortDirection
+    ): List<Container> {
+        val comparator: Comparator<Container> = when (field) {
+            ContainerSortField.NAME -> compareBy { it.displayName.lowercase() }
+            ContainerSortField.STATUS -> compareBy { !it.isRunning } // Running first when ASC
+        }
+        return if (direction == SortDirection.ASC) {
+            containers.sortedWith(comparator)
+        } else {
+            containers.sortedWith(comparator.reversed())
         }
     }
     
