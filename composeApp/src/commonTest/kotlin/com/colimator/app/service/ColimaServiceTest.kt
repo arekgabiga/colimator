@@ -34,32 +34,21 @@ class ColimaServiceTest {
     }
     
     @Test
-    fun `getStatus returns Running when colima reports running`() = runBlocking {
+    fun `getStatus returns Running when colima status succeeds`() = runBlocking {
         mockExecutor.mockResponse(
             "colima", 
-            listOf("status", "--output", "json"),
-            CommandResult(0, """{"running":true}""", "")
+            listOf("status", "--json"),
+            CommandResult(0, """{"display_name":"colima"}""", "")
         )
         
         assertEquals(VmStatus.Running, service.getStatus())
     }
     
     @Test
-    fun `getStatus returns Stopped when colima reports not running`() = runBlocking {
-        mockExecutor.mockResponse(
-            "colima", 
-            listOf("status", "--output", "json"),
-            CommandResult(0, """{"running":false}""", "")
-        )
-        
-        assertEquals(VmStatus.Stopped, service.getStatus())
-    }
-    
-    @Test
     fun `getStatus returns Stopped when colima status fails`() = runBlocking {
         mockExecutor.mockResponse(
             "colima", 
-            listOf("status", "--output", "json"),
+            listOf("status", "--json"),
             CommandResult(1, "", "colima is not running")
         )
         

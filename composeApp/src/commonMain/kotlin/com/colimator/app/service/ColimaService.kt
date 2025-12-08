@@ -1,14 +1,9 @@
 package com.colimator.app.service
 
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-
 /**
  * Service for Colima VM operations.
  */
 class ColimaService(private val shell: ShellExecutor) {
-    
-    private val json = Json { ignoreUnknownKeys = true }
     
     companion object {
         /** Timeout for quick commands like status, version */
@@ -27,18 +22,11 @@ class ColimaService(private val shell: ShellExecutor) {
     }
 
     suspend fun getStatus(): VmStatus {
-        val result = shell.execute("colima", listOf("status", "--output", "json"), QUICK_TIMEOUT)
-        if (result.isSuccess()) {
-            return try {
-                val status = json.decodeFromString<ColimaStatusJson>(result.stdout)
-                if (status.running) VmStatus.Running else VmStatus.Stopped
-            } catch (e: Exception) {
-                VmStatus.Unknown
-            }
-        } else {
-            // If colima is not running, it returns exit code 1
-            return VmStatus.Stopped
-        }
+        // Use --json flag (not --output json) for JSON output
+        val result = shell.execute("colima", listOf("status", "--json"), QUICK_TIMEOUT)
+        // When colima is running, status returns exit code 0
+        // When colima is stopped, status returns exit code 1
+        return if (result.isSuccess()) VmStatus.Running else VmStatus.Stopped
     }
 
     suspend fun start(): CommandResult = 
@@ -51,8 +39,3 @@ class ColimaService(private val shell: ShellExecutor) {
 enum class VmStatus {
     Running, Stopped, Starting, Stopping, Unknown
 }
-
-@Serializable
-data class ColimaStatusJson(
-    val running: Boolean
-)
