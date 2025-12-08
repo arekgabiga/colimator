@@ -1,6 +1,7 @@
 package com.colimator.app.service
 
 import com.colimator.app.model.Container
+import com.colimator.app.model.DockerImage
 import kotlinx.serialization.json.Json
 
 /**
@@ -35,6 +36,29 @@ class DockerService(private val shell: ShellExecutor) {
             .mapNotNull { line ->
                 try {
                     json.decodeFromString<Container>(line)
+                } catch (e: Exception) {
+                    null // Skip malformed lines
+                }
+            }
+    }
+    
+    /**
+     * List all Docker images.
+     * Parses output from 'docker images --format json'.
+     */
+    suspend fun listImages(): List<DockerImage> {
+        val result = shell.execute("docker", listOf("images", "--format", "json"))
+        if (!result.isSuccess()) {
+            return emptyList()
+        }
+        
+        // Docker outputs one JSON object per line
+        return result.stdout
+            .lines()
+            .filter { it.isNotBlank() }
+            .mapNotNull { line ->
+                try {
+                    json.decodeFromString<DockerImage>(line)
                 } catch (e: Exception) {
                     null // Skip malformed lines
                 }

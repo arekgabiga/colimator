@@ -122,4 +122,62 @@ class DockerServiceTest {
         
         assertTrue(result.isSuccess())
     }
+    
+    // --- Image tests ---
+    
+    @Test
+    fun `listImages returns empty list when no images`() = runBlocking {
+        mockExecutor.mockResponse(
+            "docker", 
+            listOf("images", "--format", "json"),
+            CommandResult(0, "", "")
+        )
+        
+        val images = service.listImages()
+        
+        assertTrue(images.isEmpty())
+    }
+    
+    @Test
+    fun `listImages parses image JSON correctly`() = runBlocking {
+        val imageJson = """{"ID":"sha256:abc123","Repository":"nginx","Tag":"latest","Size":"142MB"}"""
+        mockExecutor.mockResponse(
+            "docker", 
+            listOf("images", "--format", "json"),
+            CommandResult(0, imageJson, "")
+        )
+        
+        val images = service.listImages()
+        
+        assertEquals(1, images.size)
+        assertEquals("sha256:abc123", images[0].id)
+        assertEquals("nginx", images[0].repository)
+        assertEquals("latest", images[0].tag)
+        assertEquals("142MB", images[0].size)
+        assertEquals("nginx:latest", images[0].displayName)
+        assertEquals(142_000_000L, images[0].sizeInBytes)
+    }
+    
+    @Test
+    fun `listImages handles multiple images`() = runBlocking {
+        val json = """
+            {"ID":"sha256:abc123","Repository":"nginx","Tag":"latest","Size":"1.19GB"}
+            {"ID":"sha256:def456","Repository":"redis","Tag":"alpine","Size":"32MB"}
+        """.trimIndent()
+        
+        mockExecutor.mockResponse(
+            "docker", 
+            listOf("images", "--format", "json"),
+            CommandResult(0, json, "")
+        )
+        
+        val images = service.listImages()
+        
+        assertEquals(2, images.size)
+        assertEquals("nginx:latest", images[0].displayName)
+        assertEquals("redis:alpine", images[1].displayName)
+        // Verify size parsing
+        assertEquals(1_190_000_000L, images[0].sizeInBytes)
+        assertEquals(32_000_000L, images[1].sizeInBytes)
+    }
 }

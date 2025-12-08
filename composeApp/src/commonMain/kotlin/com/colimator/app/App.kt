@@ -11,6 +11,7 @@ import com.colimator.app.ui.theme.ColimatorTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,13 +20,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.colimator.app.ui.ContainersScreen
 import com.colimator.app.ui.DashboardScreen
+import com.colimator.app.ui.ImagesScreen
 import com.colimator.app.ui.OnboardingScreen
 import com.colimator.app.viewmodel.ContainersViewModel
 import com.colimator.app.viewmodel.DashboardViewModel
+import com.colimator.app.viewmodel.ImagesViewModel
 import com.colimator.app.viewmodel.OnboardingViewModel
 
 enum class Screen {
-    Onboarding, Dashboard, Containers
+    Onboarding, Dashboard, Containers, Images
 }
 
 @Composable
@@ -33,6 +36,7 @@ fun App(
     onboardingViewModel: OnboardingViewModel,
     dashboardViewModel: DashboardViewModel,
     containersViewModel: ContainersViewModel,
+    imagesViewModel: ImagesViewModel,
     onExit: () -> Unit
 ) {
     var currentScreen by remember { mutableStateOf(Screen.Onboarding) }
@@ -48,7 +52,7 @@ fun App(
                     )
                 }
                 
-                Screen.Dashboard, Screen.Containers -> {
+                Screen.Dashboard, Screen.Containers, Screen.Images -> {
                     Row(modifier = Modifier.fillMaxSize()) {
                         NavigationRail {
                             NavigationRailItem(
@@ -63,11 +67,18 @@ fun App(
                                 icon = { Icon(Icons.Default.List, contentDescription = "Containers") },
                                 label = { Text("Containers") }
                             )
+                            NavigationRailItem(
+                                selected = currentScreen == Screen.Images,
+                                onClick = { currentScreen = Screen.Images },
+                                icon = { Icon(Icons.Default.Layers, contentDescription = "Images") },
+                                label = { Text("Images") }
+                            )
                         }
 
                         when (currentScreen) {
                             Screen.Dashboard -> DashboardScreen(dashboardViewModel)
                             Screen.Containers -> ContainersScreen(containersViewModel)
+                            Screen.Images -> ImagesScreen(imagesViewModel)
                             else -> { /* handled above */ }
                         }
                     }
