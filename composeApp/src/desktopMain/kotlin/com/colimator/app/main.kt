@@ -11,6 +11,7 @@ import androidx.compose.ui.window.application
 import com.colimator.app.service.ColimaService
 import com.colimator.app.service.DockerService
 import com.colimator.app.service.JvmShellExecutor
+import com.colimator.app.viewmodel.ContainersViewModel
 import com.colimator.app.viewmodel.DashboardViewModel
 import com.colimator.app.viewmodel.OnboardingViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -29,6 +30,7 @@ fun main() = application {
     val dockerService = DockerService(shellExecutor)
     val onboardingViewModel = OnboardingViewModel(colimaService, dockerService)
     val dashboardViewModel = DashboardViewModel(colimaService)
+    val containersViewModel = ContainersViewModel(dockerService)
     
     // Coroutine scope for tray actions
     val trayScope = CoroutineScope(Dispatchers.IO)
@@ -108,6 +110,7 @@ fun main() = application {
         App(
             onboardingViewModel = onboardingViewModel,
             dashboardViewModel = dashboardViewModel,
+            containersViewModel = containersViewModel,
             onExit = ::exitApplication
         )
     }

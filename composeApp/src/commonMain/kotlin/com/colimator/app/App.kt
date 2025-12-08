@@ -17,8 +17,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.colimator.app.ui.ContainersScreen
 import com.colimator.app.ui.DashboardScreen
 import com.colimator.app.ui.OnboardingScreen
+import com.colimator.app.viewmodel.ContainersViewModel
 import com.colimator.app.viewmodel.DashboardViewModel
 import com.colimator.app.viewmodel.OnboardingViewModel
 
@@ -30,6 +32,7 @@ enum class Screen {
 fun App(
     onboardingViewModel: OnboardingViewModel,
     dashboardViewModel: DashboardViewModel,
+    containersViewModel: ContainersViewModel,
     onExit: () -> Unit
 ) {
     var currentScreen by remember { mutableStateOf(Screen.Onboarding) }
@@ -64,10 +67,7 @@ fun App(
 
                         when (currentScreen) {
                             Screen.Dashboard -> DashboardScreen(dashboardViewModel)
-                            Screen.Containers -> {
-                                // Placeholder for Containers Screen
-                                Text("Containers List (ToDo)")
-                            }
+                            Screen.Containers -> ContainersScreen(containersViewModel)
                             else -> { /* handled above */ }
                         }
                     }
