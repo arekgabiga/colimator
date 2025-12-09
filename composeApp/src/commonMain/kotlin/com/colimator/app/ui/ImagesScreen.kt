@@ -16,15 +16,22 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -112,7 +119,10 @@ fun ImagesScreen(viewModel: ImagesViewModel) {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(state.images, key = { it.image.id }) { imageWithUsage ->
-                        ImageRow(imageWithUsage = imageWithUsage)
+                        ImageRow(
+                            imageWithUsage = imageWithUsage,
+                            onDeleteClick = { viewModel.requestDelete(imageWithUsage) }
+                        )
                     }
                 }
             }
@@ -132,6 +142,53 @@ fun ImagesScreen(viewModel: ImagesViewModel) {
             ) {
                 Text(error)
             }
+        }
+        
+        // Delete confirmation dialog
+        state.imagePendingDelete?.let { image ->
+            AlertDialog(
+                onDismissRequest = { viewModel.cancelDelete() },
+                title = { Text("Delete Image") },
+                text = {
+                    Column {
+                        Text("Are you sure you want to delete this image?")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = image.image.displayName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "ID: ${image.image.shortId}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { viewModel.confirmDelete() },
+                        enabled = !state.isDeleting
+                    ) {
+                        if (state.isDeleting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Delete", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { viewModel.cancelDelete() },
+                        enabled = !state.isDeleting
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }
@@ -196,14 +253,21 @@ private fun SortableHeader(
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.width(60.dp)
         )
+        
+        // Spacer for delete button column
+        Spacer(modifier = Modifier.width(48.dp))
     }
 }
 
 /**
- * Single image row displaying ID, name, size, and usage status.
+ * Single image row displaying ID, name, size, usage status, and delete button.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ImageRow(imageWithUsage: DockerImageWithUsage) {
+private fun ImageRow(
+    imageWithUsage: DockerImageWithUsage,
+    onDeleteClick: () -> Unit
+) {
     val image = imageWithUsage.image
     
     Card(
@@ -249,6 +313,36 @@ private fun ImageRow(imageWithUsage: DockerImageWithUsage) {
                     text = if (imageWithUsage.isInUse) "🟢" else "⚪",
                     style = MaterialTheme.typography.bodyMedium
                 )
+            }
+            
+            // Delete button with tooltip (disabled if image is in use)
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                tooltip = {
+                    if (imageWithUsage.isInUse) {
+                        PlainTooltip {
+                            Text("Cannot delete: image is in use by a container")
+                        }
+                    }
+                },
+                state = rememberTooltipState()
+            ) {
+                IconButton(
+                    onClick = onDeleteClick,
+                    enabled = !imageWithUsage.isInUse
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = if (imageWithUsage.isInUse) 
+                            "Cannot delete: image is in use" 
+                        else 
+                            "Delete image",
+                        tint = if (imageWithUsage.isInUse)
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        else
+                            MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
     }

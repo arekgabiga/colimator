@@ -30,7 +30,9 @@ data class ImagesState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val sortVersion: Int = 0,  // Incremented on sort change to trigger scroll reset
-    val activeProfile: String = "default"
+    val activeProfile: String = "default",
+    val imagePendingDelete: DockerImageWithUsage? = null,  // Image awaiting delete confirmation
+    val isDeleting: Boolean = false  // Delete operation in progress
 )
 
 /**
@@ -150,5 +152,62 @@ class ImagesViewModel(
             images.sortedWith(comparator.reversed())
         }
     }
+    
+    /**
+     * Request deletion of an image (shows confirmation dialog).
+     */
+    fun requestDelete(image: DockerImageWithUsage) {
+        _state.update { it.copy(imagePendingDelete = image) }
+    }
+    
+    /**
+     * Cancel the pending delete operation.
+     */
+    fun cancelDelete() {
+        _state.update { it.copy(imagePendingDelete = null) }
+    }
+    
+    /**
+     * Confirm and execute the pending delete operation.
+     */
+    fun confirmDelete() {
+        val image = _state.value.imagePendingDelete ?: return
+        
+        viewModelScope.launch {
+            _state.update { it.copy(isDeleting = true) }
+            try {
+                val profileName = activeProfileRepository.activeProfile.value
+                val result = dockerService.removeImage(image.image.id, profileName)
+                
+                if (result.isSuccess()) {
+                    // Remove from local list and clear pending
+                    _state.update { current ->
+                        current.copy(
+                            images = current.images.filter { it.image.id != image.image.id },
+                            imagePendingDelete = null,
+                            isDeleting = false
+                        )
+                    }
+                } else {
+                    // Show error from Docker
+                    val errorMsg = result.stderr.ifBlank { "Failed to delete image" }
+                    _state.update { 
+                        it.copy(
+                            error = errorMsg, 
+                            imagePendingDelete = null, 
+                            isDeleting = false
+                        ) 
+                    }
+                }
+            } catch (e: Exception) {
+                _state.update { 
+                    it.copy(
+                        error = e.message ?: "Failed to delete image", 
+                        imagePendingDelete = null, 
+                        isDeleting = false
+                    ) 
+                }
+            }
+        }
+    }
 }
-

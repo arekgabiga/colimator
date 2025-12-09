@@ -111,4 +111,13 @@ class DockerService(private val shell: ShellExecutor) {
         val args = withContext(profileName, listOf("rm", id))
         return shell.execute("docker", args)
     }
+    
+    /**
+     * Remove an image by ID or name.
+     * Will fail if the image is in use by any container.
+     */
+    suspend fun removeImage(imageId: String, profileName: String? = null): CommandResult {
+        val args = withContext(profileName, listOf("rmi", imageId))
+        return shell.execute("docker", args)
+    }
 }
