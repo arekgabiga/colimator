@@ -29,4 +29,4 @@ jobs:
           tag_name: v${{ inputs.version }}
           name: Release ${{ inputs.version }}
           draft: true
-          files: composeApp/build/compose/binaries/release/dmg/*.dmg
+          files: composeApp/build/compose/binaries/main-release/dmg/*.dmg
