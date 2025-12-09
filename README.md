@@ -35,6 +35,24 @@
 - **Log Streaming**: Real-time container log viewing window.
 - **Advanced Configuration**: GUI editor for Colima settings (CPU, RAM, Disk).
 
+## 📸 Screenshots
+
+<img src="docs/images/dashboard.png" width="800" alt="Colimator Dashboard" />
+
+_Dashboard: Real-time VM status and quick actions_
+
+<img src="docs/images/containers.png" width="800" alt="Container Management" />
+
+_Containers: Manage your Docker containers_
+
+<img src="docs/images/images.png" width="800" alt="Image Management" />
+
+_Images: View and manage local Docker images_
+
+<img src="docs/images/profiles.png" width="800" alt="Profile Management" />
+
+_Profiles: Switch between Colima contexts_
+
 ## 🛠 Tech Stack
 
 - **Language**: Kotlin 2.x
