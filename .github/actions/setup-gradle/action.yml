@@ -7,7 +7,7 @@ runs:
       uses: actions/setup-java@v4
       with:
         distribution: "temurin"
-        java-version: "25"
+        java-version: "21"
 
     - name: Grant Execute Permission to Gradle
       shell: bash

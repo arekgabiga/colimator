@@ -1,0 +1,1 @@
+-dontnote META-INF/MANIFEST.MF
