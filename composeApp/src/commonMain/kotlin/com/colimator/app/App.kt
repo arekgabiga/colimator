@@ -7,7 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
@@ -94,7 +94,7 @@ fun App(
                                 NavigationRailItem(
                                     selected = currentScreen == Screen.Containers,
                                     onClick = { currentScreen = Screen.Containers },
-                                    icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Containers") },
+                                    icon = { Icon(Icons.Default.List, contentDescription = "Containers") },
                                     label = { Text("Containers") }
                                 )
                                 NavigationRailItem(
@@ -180,7 +180,7 @@ private fun ProfileSelector(
         // Profile button
         OutlinedButton(
             onClick = { expanded = true },
-            modifier = Modifier.menuAnchor(MenuAnchorType.Primary, enabled = true),
+            modifier = Modifier.menuAnchor(),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
         ) {
             // Status indicator

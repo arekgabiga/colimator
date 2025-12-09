@@ -473,7 +473,7 @@ private fun CreateProfileDialog(
                         readOnly = true,
                         label = { Text("VM Type") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = vmTypeExpanded) },
-                        modifier = Modifier.menuAnchor(MenuAnchorType.Primary, enabled = !isCreating).fillMaxWidth(),
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
                         enabled = !isCreating
                     )
                     ExposedDropdownMenu(
@@ -504,7 +504,7 @@ private fun CreateProfileDialog(
                         readOnly = true,
                         label = { Text("Mount Type") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = mountTypeExpanded) },
-                        modifier = Modifier.menuAnchor(MenuAnchorType.Primary, enabled = !isCreating).fillMaxWidth(),
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
                         enabled = !isCreating
                     )
                     ExposedDropdownMenu(
