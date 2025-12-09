@@ -10,6 +10,8 @@ on:
 jobs:
   build-dmg:
     runs-on: macos-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Repo
@@ -27,4 +29,4 @@ jobs:
           tag_name: v${{ inputs.version }}
           name: Release ${{ inputs.version }}
           draft: true
-          files: composeApp/build/compose/binaries/main/dmg/*.dmg
+          files: composeApp/build/compose/binaries/release/dmg/*.dmg

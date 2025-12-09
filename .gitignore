@@ -18,3 +18,5 @@ compose-resources/
 
 # Local configuration
 local.properties
+
+.ai/internal/
