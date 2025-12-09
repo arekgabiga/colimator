@@ -11,7 +11,20 @@ import kotlinx.serialization.json.Json
 /**
  * Service for Colima VM operations.
  */
-class ColimaService(private val shell: ShellExecutor) {
+interface ColimaService {
+    suspend fun isInstalled(): Boolean
+    suspend fun listProfiles(): List<Profile>
+    suspend fun getStatus(profileName: String? = null): VmStatus
+    suspend fun getConfig(profileName: String? = null): ColimaConfig?
+    suspend fun start(profileName: String? = null, config: ProfileCreateConfig? = null): CommandResult
+    suspend fun stop(profileName: String? = null): CommandResult
+    suspend fun delete(profileName: String): CommandResult
+}
+
+/**
+ * Service for Colima VM operations.
+ */
+class ColimaServiceImpl(private val shell: ShellExecutor) : ColimaService {
     
     private val json = Json { ignoreUnknownKeys = true }
     
@@ -29,7 +42,7 @@ class ColimaService(private val shell: ShellExecutor) {
         private const val DELETE_TIMEOUT = 30L
     }
 
-    suspend fun isInstalled(): Boolean {
+    override suspend fun isInstalled(): Boolean {
         val result = shell.execute("colima", listOf("--version"), QUICK_TIMEOUT)
         return result.isSuccess()
     }
@@ -37,7 +50,7 @@ class ColimaService(private val shell: ShellExecutor) {
     /**
      * List all Colima profiles.
      */
-    suspend fun listProfiles(): List<Profile> {
+    override suspend fun listProfiles(): List<Profile> {
         val result = shell.execute("colima", listOf("list", "--json"), QUICK_TIMEOUT)
         if (!result.isSuccess()) return emptyList()
         
@@ -79,24 +92,17 @@ class ColimaService(private val shell: ShellExecutor) {
     /**
      * Get status for a specific profile.
      */
-    suspend fun getStatus(profileName: String? = null): VmStatus {
-        val args = buildList {
-            add("status")
-            add("--json")
-            profileName?.let { 
-                add("--profile")
-                add(it)
-            }
-        }
-        val result = shell.execute("colima", args, QUICK_TIMEOUT)
-        return if (result.isSuccess()) VmStatus.Running else VmStatus.Stopped
+    override suspend fun getStatus(profileName: String?): VmStatus {
+        val targetName = profileName ?: "default"
+        val profiles = listProfiles()
+        return profiles.find { it.name == targetName }?.status ?: VmStatus.Stopped
     }
     
     /**
      * Get detailed VM configuration for a specific profile.
      * Returns null if VM is not running.
      */
-    suspend fun getConfig(profileName: String? = null): ColimaConfig? {
+    override suspend fun getConfig(profileName: String?): ColimaConfig? {
         val args = buildList {
             add("status")
             add("--json")
@@ -128,7 +134,7 @@ class ColimaService(private val shell: ShellExecutor) {
     /**
      * Start a profile. Creates new profile if config provided and profile doesn't exist.
      */
-    suspend fun start(profileName: String? = null, config: ProfileCreateConfig? = null): CommandResult {
+    override suspend fun start(profileName: String?, config: ProfileCreateConfig?): CommandResult {
         val args = buildList {
             add("start")
             profileName?.let { 
@@ -157,7 +163,7 @@ class ColimaService(private val shell: ShellExecutor) {
     /**
      * Stop a profile.
      */
-    suspend fun stop(profileName: String? = null): CommandResult {
+    override suspend fun stop(profileName: String?): CommandResult {
         val args = buildList {
             add("stop")
             profileName?.let { 
@@ -171,7 +177,7 @@ class ColimaService(private val shell: ShellExecutor) {
     /**
      * Delete a profile. Profile must be stopped first.
      */
-    suspend fun delete(profileName: String): CommandResult {
+    override suspend fun delete(profileName: String): CommandResult {
         val args = listOf("delete", "--profile", profileName, "--force")
         return shell.execute("colima", args, DELETE_TIMEOUT)
     }

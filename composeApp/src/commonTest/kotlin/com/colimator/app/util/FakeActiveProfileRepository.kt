@@ -1,22 +1,11 @@
-package com.colimator.app.service
+package com.colimator.app.util
 
+import com.colimator.app.service.ActiveProfileRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/**
- * Repository to track the currently active Colima profile.
- * Shared across ViewModels to coordinate profile switching.
- */
-interface ActiveProfileRepository {
-    val activeProfile: StateFlow<String?>
-    fun setActiveProfile(profileName: String?)
-    fun hasProfileChanged(): Boolean
-    fun acknowledgeProfileChange()
-    fun getActiveProfileDisplayName(): String
-}
-
-class ActiveProfileRepositoryImpl : ActiveProfileRepository {
+class FakeActiveProfileRepository : ActiveProfileRepository {
     private val _activeProfile = MutableStateFlow<String?>(null)
     override val activeProfile: StateFlow<String?> = _activeProfile.asStateFlow()
     

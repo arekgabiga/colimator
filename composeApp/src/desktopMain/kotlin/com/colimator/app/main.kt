@@ -9,7 +9,9 @@ import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import com.colimator.app.service.ActiveProfileRepository
+import com.colimator.app.service.ActiveProfileRepositoryImpl
 import com.colimator.app.service.ColimaService
+import com.colimator.app.service.ColimaServiceImpl
 import com.colimator.app.service.DockerService
 import com.colimator.app.service.JvmShellExecutor
 import com.colimator.app.viewmodel.ContainersViewModel
@@ -29,11 +31,11 @@ import java.awt.image.BufferedImage
 fun main() = application {
     // Dependency Injection Root
     val shellExecutor = JvmShellExecutor()
-    val colimaService = ColimaService(shellExecutor)
+    val colimaService = ColimaServiceImpl(shellExecutor)
     val dockerService = DockerService(shellExecutor)
     
     // Shared profile repository
-    val activeProfileRepository = ActiveProfileRepository()
+    val activeProfileRepository = ActiveProfileRepositoryImpl()
     
     // ViewModels with profile awareness
     val onboardingViewModel = OnboardingViewModel(colimaService, dockerService)
