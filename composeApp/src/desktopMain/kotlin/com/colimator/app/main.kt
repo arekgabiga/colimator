@@ -13,6 +13,7 @@ import com.colimator.app.service.ActiveProfileRepositoryImpl
 import com.colimator.app.service.ColimaService
 import com.colimator.app.service.ColimaServiceImpl
 import com.colimator.app.service.DockerService
+import com.colimator.app.service.DockerServiceImpl
 import com.colimator.app.service.JvmShellExecutor
 import com.colimator.app.viewmodel.ContainersViewModel
 import com.colimator.app.viewmodel.DashboardViewModel
@@ -32,7 +33,7 @@ fun main() = application {
     // Dependency Injection Root
     val shellExecutor = JvmShellExecutor()
     val colimaService = ColimaServiceImpl(shellExecutor)
-    val dockerService = DockerService(shellExecutor)
+    val dockerService = DockerServiceImpl(shellExecutor)
     
     // Shared profile repository
     val activeProfileRepository = ActiveProfileRepositoryImpl()

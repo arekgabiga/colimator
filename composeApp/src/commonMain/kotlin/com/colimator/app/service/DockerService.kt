@@ -7,7 +7,20 @@ import kotlinx.serialization.json.Json
 /**
  * Service for Docker CLI operations.
  */
-class DockerService(private val shell: ShellExecutor) {
+/**
+ * Service for Docker CLI operations.
+ */
+interface DockerService {
+    suspend fun isInstalled(): Boolean
+    suspend fun listContainers(profileName: String? = null): List<Container>
+    suspend fun listImages(profileName: String? = null): List<DockerImage>
+    suspend fun startContainer(id: String, profileName: String? = null): CommandResult
+    suspend fun stopContainer(id: String, profileName: String? = null): CommandResult
+    suspend fun removeContainer(id: String, profileName: String? = null): CommandResult
+    suspend fun removeImage(imageId: String, profileName: String? = null): CommandResult
+}
+
+class DockerServiceImpl(private val shell: ShellExecutor) : DockerService {
     
     private val json = Json { ignoreUnknownKeys = true }
     
@@ -35,7 +48,7 @@ class DockerService(private val shell: ShellExecutor) {
     /**
      * Check if docker CLI is installed and accessible.
      */
-    suspend fun isInstalled(): Boolean {
+    override suspend fun isInstalled(): Boolean {
         val result = shell.execute("docker", listOf("--version"))
         return result.isSuccess()
     }
@@ -44,7 +57,7 @@ class DockerService(private val shell: ShellExecutor) {
      * List all containers (running and stopped).
      * Parses output from 'docker ps -a --format json'.
      */
-    suspend fun listContainers(profileName: String? = null): List<Container> {
+    override suspend fun listContainers(profileName: String?): List<Container> {
         val args = withContext(profileName, listOf("ps", "-a", "--format", "json"))
         val result = shell.execute("docker", args)
         if (!result.isSuccess()) {
@@ -68,7 +81,7 @@ class DockerService(private val shell: ShellExecutor) {
      * List all Docker images.
      * Parses output from 'docker images --format json'.
      */
-    suspend fun listImages(profileName: String? = null): List<DockerImage> {
+    override suspend fun listImages(profileName: String?): List<DockerImage> {
         val args = withContext(profileName, listOf("images", "--format", "json"))
         val result = shell.execute("docker", args)
         if (!result.isSuccess()) {
@@ -91,7 +104,7 @@ class DockerService(private val shell: ShellExecutor) {
     /**
      * Start a stopped container.
      */
-    suspend fun startContainer(id: String, profileName: String? = null): CommandResult {
+    override suspend fun startContainer(id: String, profileName: String?): CommandResult {
         val args = withContext(profileName, listOf("start", id))
         return shell.execute("docker", args)
     }
@@ -99,7 +112,7 @@ class DockerService(private val shell: ShellExecutor) {
     /**
      * Stop a running container.
      */
-    suspend fun stopContainer(id: String, profileName: String? = null): CommandResult {
+    override suspend fun stopContainer(id: String, profileName: String?): CommandResult {
         val args = withContext(profileName, listOf("stop", id))
         return shell.execute("docker", args)
     }
@@ -107,7 +120,7 @@ class DockerService(private val shell: ShellExecutor) {
     /**
      * Remove a container (must be stopped first).
      */
-    suspend fun removeContainer(id: String, profileName: String? = null): CommandResult {
+    override suspend fun removeContainer(id: String, profileName: String?): CommandResult {
         val args = withContext(profileName, listOf("rm", id))
         return shell.execute("docker", args)
     }
@@ -116,7 +129,7 @@ class DockerService(private val shell: ShellExecutor) {
      * Remove an image by ID or name.
      * Will fail if the image is in use by any container.
      */
-    suspend fun removeImage(imageId: String, profileName: String? = null): CommandResult {
+    override suspend fun removeImage(imageId: String, profileName: String?): CommandResult {
         val args = withContext(profileName, listOf("rmi", imageId))
         return shell.execute("docker", args)
     }

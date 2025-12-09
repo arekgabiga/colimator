@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 class DockerServiceTest {
     
     private val mockExecutor = MockShellExecutor()
-    private val service = DockerService(mockExecutor)
+    private val service = DockerServiceImpl(mockExecutor)
     
     @Test
     fun `isInstalled returns true when docker version succeeds`() = runBlocking {
