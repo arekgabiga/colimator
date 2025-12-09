@@ -8,6 +8,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.Tray
 import com.colimator.app.service.ActiveProfileRepository
 import com.colimator.app.service.ActiveProfileRepositoryImpl
 import com.colimator.app.service.ColimaService
@@ -23,11 +24,15 @@ import com.colimator.app.viewmodel.ProfilesViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.awt.MenuItem
-import java.awt.PopupMenu
-import java.awt.SystemTray
-import java.awt.TrayIcon
-import java.awt.image.BufferedImage
+import java.awt.Taskbar
+import javax.imageio.ImageIO
+
+import org.jetbrains.compose.resources.painterResource
+import colimator.composeapp.generated.resources.Res
+import colimator.composeapp.generated.resources.app_icon
+import colimator.composeapp.generated.resources.tray_icon
+
+
 
 fun main() = application {
     // Dependency Injection Root
@@ -51,78 +56,70 @@ fun main() = application {
     // Window state - use visible property instead of conditional rendering
     var isWindowVisible by remember { mutableStateOf(true) }
     val windowState = remember { WindowState() }
-    
-    // System Tray setup
-    if (SystemTray.isSupported()) {
-        val tray = SystemTray.getSystemTray()
-        
-        // Create a simple icon (green/gray square for MVP)
-        val icon = createTrayIcon()
-        
-        val popup = PopupMenu().apply {
-            add(MenuItem("Start Colima").apply {
-                addActionListener {
+
+    val appIcon = painterResource(Res.drawable.app_icon)
+    val trayIcon = painterResource(Res.drawable.tray_icon)
+
+    // Window icon is handled by the Window composable below and the native distribution config
+
+    Tray(
+        icon = trayIcon,
+        menu = {
+            Item(
+                "Start Colima",
+                onClick = {
                     trayScope.launch { 
                         colimaService.start(activeProfileRepository.activeProfile.value) 
                     }
                     dashboardViewModel.refreshStatus()
                 }
-            })
-            add(MenuItem("Stop Colima").apply {
-                addActionListener {
+            )
+            Item(
+                "Stop Colima",
+                onClick = {
                     trayScope.launch { 
                         colimaService.stop(activeProfileRepository.activeProfile.value) 
                     }
                     dashboardViewModel.refreshStatus()
                 }
-            })
-            addSeparator()
-            add(MenuItem("Show Window").apply {
-                addActionListener {
+            )
+            Separator()
+            Item(
+                "Show Window",
+                onClick = {
                     isWindowVisible = true
                     windowState.isMinimized = false
                     windowState.placement = WindowPlacement.Floating
                 }
-            })
-            addSeparator()
-            add(MenuItem("Quit").apply {
-                addActionListener {
+            )
+            Separator()
+            Item(
+                "Quit",
+                onClick = {
                     exitApplication()
                 }
-            })
+            )
+        },
+        tooltip = "Colimator",
+        onAction = {
+             isWindowVisible = !isWindowVisible
+             if (isWindowVisible) {
+                 windowState.isMinimized = false
+                 windowState.placement = WindowPlacement.Floating
+             }
         }
-        
-        val trayIcon = TrayIcon(icon, "Colimator", popup).apply {
-            isImageAutoSize = true
-            addActionListener {
-                // Left-click: show window
-                isWindowVisible = true
-                windowState.isMinimized = false
-                windowState.placement = WindowPlacement.Floating
-            }
-        }
-        
-        try {
-            tray.add(trayIcon)
-        } catch (e: Exception) {
-            // Tray not available, continue without it
-            println("System tray not available: ${e.message}")
-        }
-    }
+    )
 
     // Main window - always rendered, visibility controlled
     Window(
         onCloseRequest = {
             // Minimize to tray instead of exiting
-            if (SystemTray.isSupported()) {
-                isWindowVisible = false
-            } else {
-                exitApplication()
-            }
+             isWindowVisible = false
         },
         visible = isWindowVisible,
         state = windowState,
         title = "Colimator",
+        icon = appIcon
     ) {
         App(
             onboardingViewModel = onboardingViewModel,
@@ -136,28 +133,4 @@ fun main() = application {
     }
 }
 
-/**
- * Creates a simple 22x22 tray icon for macOS.
- * Uses a teal/green color to match the app theme.
- */
-private fun createTrayIcon(): BufferedImage {
-    val size = 22
-    val image = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
-    val g = image.createGraphics()
-    
-    // Draw a simple rounded rectangle in teal color
-    g.color = java.awt.Color(0x80, 0xCB, 0xC4) // Teal from our theme
-    g.fillRoundRect(2, 2, size - 4, size - 4, 4, 4)
-    
-    // Draw a "C" letter for Colimator
-    g.color = java.awt.Color.WHITE
-    g.font = java.awt.Font("SansSerif", java.awt.Font.BOLD, 14)
-    val metrics = g.fontMetrics
-    val x = (size - metrics.stringWidth("C")) / 2
-    val y = (size - metrics.height) / 2 + metrics.ascent
-    g.drawString("C", x, y)
-    
-    g.dispose()
-    return image
-}
 

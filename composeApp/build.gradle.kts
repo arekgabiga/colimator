@@ -51,6 +51,10 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Colimator"
             packageVersion = "1.0.0"
+
+            macOS {
+                iconFile.set(project.file("src/commonMain/composeResources/drawable/icon.icns"))
+            }
         }
     }
 }

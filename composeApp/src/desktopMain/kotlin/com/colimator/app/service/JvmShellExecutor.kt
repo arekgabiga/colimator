@@ -15,10 +15,25 @@ class JvmShellExecutor : ShellExecutor {
         timeoutSeconds: Long
     ): CommandResult = withContext(Dispatchers.IO) {
         try {
-            val process = ProcessBuilder(listOf(command) + args)
+            val resolvedCommand = resolveExecutable(command)
+            val pb = ProcessBuilder(listOf(resolvedCommand) + args)
                 .redirectOutput(ProcessBuilder.Redirect.PIPE)
                 .redirectError(ProcessBuilder.Redirect.PIPE)
-                .start()
+            
+            // Fix for GUI apps not loading .zshrc/.bash_profile PATH
+            val env = pb.environment()
+            val existingPath = env["PATH"] ?: ""
+            val commonPaths = listOf(
+                "/usr/local/bin",
+                "/opt/homebrew/bin",
+                "/opt/local/bin",
+                System.getProperty("user.home") + "/.colima/bin",
+                System.getProperty("user.home") + "/.docker/bin"
+            ).joinToString(":")
+            
+            env["PATH"] = if (existingPath.isNotEmpty()) "$commonPaths:$existingPath" else commonPaths
+            
+            val process = pb.start()
 
             val finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
             
@@ -36,7 +51,33 @@ class JvmShellExecutor : ShellExecutor {
 
             CommandResult(process.exitValue(), stdout, stderr)
         } catch (e: Exception) {
+            e.printStackTrace()
             CommandResult(-1, "", "Exception: ${e.message}")
         }
+    }
+
+    private fun resolveExecutable(command: String): String {
+        if (command.contains("/")) return command // Already absolute or relative path
+        
+        val searchPaths = listOf(
+            "/usr/local/bin",
+            "/opt/homebrew/bin",
+            "/opt/local/bin",
+            System.getProperty("user.home") + "/.colima/bin",
+            System.getProperty("user.home") + "/.docker/bin",
+            "/usr/bin",
+            "/bin",
+            "/usr/sbin",
+            "/sbin"
+        )
+        
+        for (path in searchPaths) {
+            val file = java.io.File(path, command)
+            if (file.exists() && file.canExecute()) {
+                return file.absolutePath
+            }
+        }
+        
+        return command // Fallback to system lookup
     }
 }
