@@ -51,6 +51,7 @@ class DashboardViewModel(
                 val config = if (status == VmStatus.Running) colimaService.getConfig(profileName) else null
                 _state.update { it.copy(vmStatus = status, vmConfig = config, isLoading = false) }
             } catch (e: Exception) {
+                e.printStackTrace()
                 _state.update { it.copy(error = e.message ?: "Failed to get status", isLoading = false) }
             }
         }

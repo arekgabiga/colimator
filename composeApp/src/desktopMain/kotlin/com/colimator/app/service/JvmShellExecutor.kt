@@ -2,6 +2,7 @@ package com.colimator.app.service
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
 import java.util.concurrent.TimeUnit
 
 /**
@@ -14,11 +15,10 @@ class JvmShellExecutor : ShellExecutor {
         args: List<String>,
         timeoutSeconds: Long
     ): CommandResult = withContext(Dispatchers.IO) {
+        var process: Process? = null
         try {
             val resolvedCommand = resolveExecutable(command)
             val pb = ProcessBuilder(listOf(resolvedCommand) + args)
-                .redirectOutput(ProcessBuilder.Redirect.PIPE)
-                .redirectError(ProcessBuilder.Redirect.PIPE)
             
             // Fix for GUI apps not loading .zshrc/.bash_profile PATH
             val env = pb.environment()
@@ -31,27 +31,38 @@ class JvmShellExecutor : ShellExecutor {
                 System.getProperty("user.home") + "/.docker/bin"
             ).joinToString(":")
             
-            env["PATH"] = if (existingPath.isNotEmpty()) "$commonPaths:$existingPath" else commonPaths
+            val newPath = if (existingPath.isNotEmpty()) "$commonPaths:$existingPath" else commonPaths
+            env["PATH"] = newPath
             
-            val process = pb.start()
+            process = pb.start()
+            
+            // Close stdin immediately as we don't write to it. 
+            // This prevents some commands from hanging waiting for input.
+            process.outputStream.close()
+
+            // Read output and error streams asynchronously to prevent deadlocks
+            val stdoutDeferred = async { process!!.inputReader().readText() }
+            val stderrDeferred = async { process!!.errorReader().readText() }
 
             val finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
             
-            val stdout = process.inputReader().readText()
-            val stderr = process.errorReader().readText()
-
             if (!finished) {
                 process.destroyForcibly()
                 return@withContext CommandResult(
                     exitCode = -1, 
-                    stdout = stdout, 
-                    stderr = "Timeout: Command did not complete within ${timeoutSeconds}s. $stderr"
+                    stdout = try { stdoutDeferred.await() } catch (e: Exception) { "" },
+                    stderr = "Timeout: Command did not complete within ${timeoutSeconds}s."
                 )
             }
+
+            val stdout = stdoutDeferred.await()
+            val stderr = stderrDeferred.await()
 
             CommandResult(process.exitValue(), stdout, stderr)
         } catch (e: Exception) {
             e.printStackTrace()
+            // Ensure process is killed if we crash
+            process?.destroyForcibly()
             CommandResult(-1, "", "Exception: ${e.message}")
         }
     }

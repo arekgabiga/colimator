@@ -49,8 +49,12 @@ compose.desktop {
         mainClass = "com.colimator.app.MainKt"
 
         buildTypes.release.proguard {
+            obfuscate.set(false)
+            optimize.set(false)
             configurationFiles.from(project.file("proguard-rules.pro"))
         }
+
+
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Colimator"
