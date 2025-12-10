@@ -39,6 +39,9 @@ kotlin {
         val desktopMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
+                implementation(libs.jediterm.pty)
+                implementation(libs.jediterm.typeahead)
+                implementation(libs.pty4j)
             }
         }
     }
@@ -47,6 +50,10 @@ kotlin {
 compose.desktop {
     application {
         mainClass = "com.colimator.app.MainKt"
+        
+        jvmArgs += listOf(
+            "-Xdock:name=Colimator"  // Set app name in macOS menu bar for dev mode
+        )
 
         buildTypes.release.proguard {
             obfuscate.set(false)

@@ -27,3 +27,24 @@
 -keepclasseswithmembers class * {
     public static ** Companion;
 }
+
+# PTY4J native library loading - required for terminal emulation
+-keep class com.pty4j.** { *; }
+-keep class com.pty4j.unix.** { *; }
+-keep class com.pty4j.windows.** { *; }
+-keepclassmembers class com.pty4j.** {
+    native <methods>;
+}
+
+# JediTerm terminal emulator
+-keep class com.jediterm.** { *; }
+
+# JNA (Java Native Access) - used by PTY4J for native calls
+-keep class com.sun.jna.** { *; }
+-keep class com.sun.jna.ptr.** { *; }
+-keepclassmembers class * extends com.sun.jna.Structure {
+    <fields>;
+}
+-keepclassmembers class * implements com.sun.jna.Callback {
+    *;
+}

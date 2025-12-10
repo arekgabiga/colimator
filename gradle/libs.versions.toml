@@ -5,6 +5,9 @@ agp = "8.8.0"     # Android Gradle Plugin (needed for multiplatform usually, eve
 junit = "5.10.1"
 kotlinx-coroutines = "1.10.1"
 kotlinx-serialization = "1.8.0"
+jediterm = "2.69"
+pty4j = "0.13.11"
+
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -13,6 +16,10 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+jediterm-pty = { module = "org.jetbrains.jediterm:jediterm-pty", version.ref = "jediterm" }
+jediterm-typeahead = { module = "org.jetbrains.jediterm:jediterm-typeahead", version.ref = "jediterm" }
+pty4j = { module = "org.jetbrains.pty4j:pty4j", version.ref = "pty4j" }
+
 
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

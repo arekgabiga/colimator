@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -47,7 +48,10 @@ import com.colimator.app.viewmodel.SortDirection
  * Screen displaying Docker containers list with sorting and actions.
  */
 @Composable
-fun ContainersScreen(viewModel: ContainersViewModel) {
+fun ContainersScreen(
+    viewModel: ContainersViewModel,
+    onContainerClick: (String) -> Unit
+) {
     val state by viewModel.state.collectAsState()
     val listState = rememberLazyListState()
     
@@ -121,7 +125,8 @@ fun ContainersScreen(viewModel: ContainersViewModel) {
                             isLoading = state.isLoading,
                             onStart = { viewModel.startContainer(container.id) },
                             onStop = { viewModel.stopContainer(container.id) },
-                            onRemove = { viewModel.removeContainer(container.id) }
+                            onRemove = { viewModel.removeContainer(container.id) },
+                            onTerminal = { onContainerClick(container.id) }
                         )
                     }
                 }
@@ -205,7 +210,7 @@ private fun ContainerSortableHeader(
         Text(
             text = "Actions",
             style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.width(100.dp)
+            modifier = Modifier.width(140.dp)
         )
     }
 }
@@ -219,7 +224,8 @@ private fun ContainerRow(
     isLoading: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onTerminal: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth()
@@ -266,11 +272,26 @@ private fun ContainerRow(
                 )
             }
 
-            // Action buttons (matches Actions column - 100.dp width)
+            // Action buttons (matches Actions column - 140.dp width)
             Row(
-                modifier = Modifier.width(100.dp),
+                modifier = Modifier.width(140.dp),
                 horizontalArrangement = Arrangement.End
             ) {
+                // Terminal button - only for running containers
+                IconButton(
+                    onClick = onTerminal,
+                    enabled = !isLoading && container.isRunning
+                ) {
+                    Icon(
+                        Icons.Outlined.Terminal,
+                        contentDescription = "Terminal",
+                        tint = if (container.isRunning)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                }
+                
                 if (container.isRunning) {
                     IconButton(
                         onClick = onStop,

@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import com.colimator.app.model.Profile
 import com.colimator.app.service.ActiveProfileRepository
 import com.colimator.app.service.VmStatus
+import com.colimator.app.ui.ContainerDetailsScreen
+import com.colimator.app.ui.ContainerDetailsScreen
 import com.colimator.app.ui.ContainersScreen
 import com.colimator.app.ui.DashboardScreen
 import com.colimator.app.ui.ImagesScreen
@@ -32,8 +34,13 @@ import com.colimator.app.viewmodel.ImagesViewModel
 import com.colimator.app.viewmodel.OnboardingViewModel
 import com.colimator.app.viewmodel.ProfilesViewModel
 
-enum class Screen {
-    Onboarding, Dashboard, Containers, Images, Profiles
+sealed class Screen {
+    data object Onboarding : Screen()
+    data object Dashboard : Screen()
+    data object Containers : Screen()
+    data object Images : Screen()
+    data object Profiles : Screen()
+    data class ContainerDetails(val containerId: String) : Screen()
 }
 
 @Composable
@@ -46,7 +53,7 @@ fun App(
     activeProfileRepository: ActiveProfileRepository,
     onExit: () -> Unit
 ) {
-    var currentScreen by remember { mutableStateOf(Screen.Onboarding) }
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.Onboarding) }
     var previousScreen by remember { mutableStateOf<Screen?>(null) }
 
     ColimatorTheme {
@@ -60,12 +67,13 @@ fun App(
                     )
                 }
                 
-                Screen.Dashboard, Screen.Containers, Screen.Images, Screen.Profiles -> {
+                Screen.Dashboard, Screen.Containers, Screen.Images, Screen.Profiles, is Screen.ContainerDetails -> {
                     // Trigger refresh when navigating to Containers or Images
                     LaunchedEffect(currentScreen) {
-                        if (currentScreen == Screen.Containers && previousScreen != Screen.Containers) {
+                        if ((currentScreen is Screen.Containers || currentScreen is Screen.ContainerDetails) && 
+                            previousScreen !is Screen.Containers && previousScreen !is Screen.ContainerDetails) {
                             containersViewModel.onScreenVisible()
-                        } else if (currentScreen == Screen.Images && previousScreen != Screen.Images) {
+                        } else if (currentScreen is Screen.Images && previousScreen !is Screen.Images) {
                             imagesViewModel.onScreenVisible()
                         }
                         previousScreen = currentScreen
@@ -92,7 +100,7 @@ fun App(
                                     label = { Text("Dashboard") }
                                 )
                                 NavigationRailItem(
-                                    selected = currentScreen == Screen.Containers,
+                                    selected = currentScreen is Screen.Containers || currentScreen is Screen.ContainerDetails,
                                     onClick = { currentScreen = Screen.Containers },
                                     icon = { Icon(Icons.Default.List, contentDescription = "Containers") },
                                     label = { Text("Containers") }
@@ -113,7 +121,15 @@ fun App(
 
                             when (currentScreen) {
                                 Screen.Dashboard -> DashboardScreen(dashboardViewModel)
-                                Screen.Containers -> ContainersScreen(containersViewModel)
+                                Screen.Containers -> ContainersScreen(
+                                    viewModel = containersViewModel,
+                                    onContainerClick = { id -> currentScreen = Screen.ContainerDetails(id) }
+                                )
+                                is Screen.ContainerDetails -> ContainerDetailsScreen(
+                                    containerId = (currentScreen as Screen.ContainerDetails).containerId,
+                                    profileName = activeProfileRepository.activeProfile.value,
+                                    onBack = { currentScreen = Screen.Containers }
+                                )
                                 Screen.Images -> ImagesScreen(imagesViewModel)
                                 Screen.Profiles -> ProfilesScreen(profilesViewModel)
                                 else -> { /* handled above */ }
