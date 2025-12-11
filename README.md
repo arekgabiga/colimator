@@ -6,7 +6,7 @@
 
 ## 🚀 Features
 
-### Current MVP Features
+### Current Features
 
 - **VM Management**:
   - Real-time status tracking of the Colima Virtual Machine.
@@ -16,6 +16,8 @@
   - List active and stopped containers.
   - Start, Stop, and Delete containers.
   - View container details (Status, Ports, Image, ID).
+  - **Container Inspection**: Detailed container info with Overview and raw JSON views.
+  - **Embedded Terminal**: Direct shell access into running containers via `docker exec`.
 - **Image Management**:
   - List local Docker images.
   - Sort images by name or size.
@@ -31,7 +33,6 @@
 ### Planned Features
 
 - **Volume Management**: List and manage Docker volumes.
-- **Terminal Integration**: Embedded terminal for direct `docker exec` sessions.
 - **Log Streaming**: Real-time container log viewing window.
 - **Advanced Configuration**: GUI editor for Colima settings (CPU, RAM, Disk).
 
@@ -52,6 +53,14 @@ _Images: View and manage local Docker images_
 <img src="docs/images/profiles.png" width="800" alt="Profile Management" />
 
 _Profiles: Switch between Colima contexts_
+
+<img src="docs/images/info.png" width="800" alt="Container Inspection" />
+
+_Info: Detailed container inspection with Overview and Raw JSON views_
+
+<img src="docs/images/shell.png" width="800" alt="Embedded Terminal" />
+
+_Shell: Embedded terminal for direct container access_
 
 ## 🛠 Tech Stack
 
