@@ -31,6 +31,7 @@ import org.jetbrains.compose.resources.painterResource
 import colimator.composeapp.generated.resources.Res
 import colimator.composeapp.generated.resources.app_icon
 import colimator.composeapp.generated.resources.tray_icon
+import com.colimator.app.ui.TerminalSessionManager
 
 
 
@@ -96,6 +97,7 @@ fun main() = application {
             Item(
                 "Quit",
                 onClick = {
+                    TerminalSessionManager.closeAllSessions()
                     exitApplication()
                 }
             )

@@ -73,3 +73,22 @@ compose.desktop {
         }
     }
 }
+
+// Configure test logging to show stats in console
+tasks.withType<Test> {
+    testLogging {
+        events("passed", "skipped", "failed")
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
+        
+        afterSuite(KotlinClosure2<TestDescriptor, TestResult, Unit>({ desc, result ->
+            if (desc.parent == null) { // root suite
+                println("\n--------------------------------------------")
+                println("Test Results: ${result.resultType}")
+                println("Tests: ${result.testCount}, Passed: ${result.successfulTestCount}, Failed: ${result.failedTestCount}, Skipped: ${result.skippedTestCount}")
+                println("--------------------------------------------")
+            }
+        }))
+    }
+}
