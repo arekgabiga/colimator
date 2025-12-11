@@ -130,6 +130,7 @@ fun main() = application {
             imagesViewModel = imagesViewModel,
             profilesViewModel = profilesViewModel,
             activeProfileRepository = activeProfileRepository,
+            dockerService = dockerService,
             onExit = ::exitApplication
         )
     }

@@ -1,6 +1,7 @@
 package com.colimator.app.service
 
 import com.colimator.app.model.Container
+import com.colimator.app.model.ContainerInspection
 import com.colimator.app.model.DockerImage
 import kotlinx.serialization.json.Json
 
@@ -18,6 +19,7 @@ interface DockerService {
     suspend fun stopContainer(id: String, profileName: String? = null): CommandResult
     suspend fun removeContainer(id: String, profileName: String? = null): CommandResult
     suspend fun removeImage(imageId: String, profileName: String? = null): CommandResult
+    suspend fun inspectContainer(id: String, profileName: String? = null): ContainerInspection?
 }
 
 class DockerServiceImpl(private val shell: ShellExecutor) : DockerService {
@@ -132,5 +134,26 @@ class DockerServiceImpl(private val shell: ShellExecutor) : DockerService {
     override suspend fun removeImage(imageId: String, profileName: String?): CommandResult {
         val args = withContext(profileName, listOf("rmi", imageId))
         return shell.execute("docker", args)
+    }
+
+    /**
+     * Inspect a container to get detailed information.
+     * Returns null if inspection fails.
+     */
+    override suspend fun inspectContainer(id: String, profileName: String?): ContainerInspection? {
+        val args = withContext(profileName, listOf("inspect", id))
+        val result = shell.execute("docker", args)
+        if (!result.isSuccess()) {
+            return null
+        }
+
+        return try {
+            // docker inspect returns a JSON array
+            val inspections = json.decodeFromString<List<ContainerInspection>>(result.stdout)
+            inspections.firstOrNull()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 }

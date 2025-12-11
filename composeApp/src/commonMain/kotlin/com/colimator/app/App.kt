@@ -51,6 +51,7 @@ fun App(
     imagesViewModel: ImagesViewModel,
     profilesViewModel: ProfilesViewModel,
     activeProfileRepository: ActiveProfileRepository,
+    dockerService: com.colimator.app.service.DockerService,
     onExit: () -> Unit
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Onboarding) }
@@ -128,6 +129,7 @@ fun App(
                                 is Screen.ContainerDetails -> ContainerDetailsScreen(
                                     containerId = (currentScreen as Screen.ContainerDetails).containerId,
                                     profileName = activeProfileRepository.activeProfile.value,
+                                    dockerService = dockerService,
                                     onBack = { currentScreen = Screen.Containers }
                                 )
                                 Screen.Images -> ImagesScreen(imagesViewModel)

@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 fun ContainerDetailsScreen(
     containerId: String,
     profileName: String?,
+    dockerService: com.colimator.app.service.DockerService,
     onBack: () -> Unit
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
@@ -80,9 +81,11 @@ fun ContainerDetailsScreen(
 
             Box(modifier = Modifier.fillMaxSize()) {
                 when (selectedTabIndex) {
-                    0 -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { 
-                        Text("Container Info for $containerId (Coming Soon)") 
-                    }
+                    0 -> ContainerInfoTab(
+                        containerId = containerId,
+                        profileName = profileName,
+                        dockerService = dockerService
+                    )
                     1 -> TerminalTabContent(
                         containerId = containerId,
                         profileName = profileName,

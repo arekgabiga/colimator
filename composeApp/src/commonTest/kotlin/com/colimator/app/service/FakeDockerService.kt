@@ -56,4 +56,11 @@ class FakeDockerService : DockerService {
         _images.removeIf { it.id == imageId }
         return removeImageResult
     }
+
+    // Mock inspection result
+    var inspectionResult: com.colimator.app.model.ContainerInspection? = null
+
+    override suspend fun inspectContainer(id: String, profileName: String?): com.colimator.app.model.ContainerInspection? {
+        return inspectionResult
+    }
 }
