@@ -20,6 +20,7 @@ interface DockerService {
     suspend fun removeContainer(id: String, profileName: String? = null): CommandResult
     suspend fun removeImage(imageId: String, profileName: String? = null): CommandResult
     suspend fun inspectContainer(id: String, profileName: String? = null): ContainerInspection?
+    fun streamLogs(id: String, profileName: String? = null): kotlinx.coroutines.flow.Flow<String>
 }
 
 class DockerServiceImpl(private val shell: ShellExecutor) : DockerService {
@@ -155,5 +156,17 @@ class DockerServiceImpl(private val shell: ShellExecutor) : DockerService {
             e.printStackTrace()
             null
         }
+    }
+
+    /**
+     * Stream logs from a container.
+     */
+    override fun streamLogs(id: String, profileName: String?): kotlinx.coroutines.flow.Flow<String> {
+        // docker logs -f --tail 1000 -t <container_id>
+        // -f: follow output
+        // --tail 1000: show last 1000 lines
+        // -t: show timestamps
+        val args = withContext(profileName, listOf("logs", "-f", "--tail", "1000", "-t", id))
+        return shell.executeStream("docker", args)
     }
 }

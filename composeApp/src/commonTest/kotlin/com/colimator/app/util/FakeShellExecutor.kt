@@ -26,4 +26,10 @@ class FakeShellExecutor : ShellExecutor {
         // Let's return a default failure so tests fail if we forget to mock.
         return responses[key] ?: CommandResult(exitCode = 127, stdout = "", stderr = "Command not mocked: $key")
     }
+
+    override fun executeStream(
+        command: String,
+        args: List<String>,
+        env: Map<String, String>
+    ): kotlinx.coroutines.flow.Flow<String> = kotlinx.coroutines.flow.emptyFlow()
 }

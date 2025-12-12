@@ -174,5 +174,51 @@ class ContainersViewModel(
     fun clearError() {
         _state.update { it.copy(error = null) }
     }
+    
+    // --- Logging Support ---
+    
+    private val _logs = MutableStateFlow<List<com.colimator.app.model.LogLine>>(emptyList())
+    val logs: StateFlow<List<com.colimator.app.model.LogLine>> = _logs.asStateFlow()
+    
+    private var logJob: kotlinx.coroutines.Job? = null
+    private val maxLogLines = 5000
+    
+    fun startStreamingLogs(containerId: String) {
+        stopStreamingLogs()
+        _logs.value = emptyList()
+        
+        logJob = viewModelScope.launch {
+            val profileName = activeProfileRepository.activeProfile.value
+            dockerService.streamLogs(containerId, profileName)
+                .collect { rawLine ->
+                    // Expected format: "2023-10-27T10:00:00.000000000Z message content..."
+                    // Docker with -t adds timestamp + space at the beginning
+                    val parts = rawLine.split(" ", limit = 2)
+                    var timestamp = ""
+                    var content = rawLine
+                    
+                    if (parts.size == 2 && parts[0].length > 20) { // Rough check for timestamp
+                         timestamp = parts[0]
+                         content = parts[1]
+                    }
+                    
+                    val logLine = com.colimator.app.model.LogLine(timestamp, content)
+                    
+                    _logs.update { current ->
+                        val newList = current + logLine
+                        if (newList.size > maxLogLines) {
+                             newList.drop(newList.size - maxLogLines)
+                        } else {
+                            newList
+                        }
+                    }
+                }
+        }
+    }
+    
+    fun stopStreamingLogs() {
+        logJob?.cancel()
+        logJob = null
+    }
 }
 

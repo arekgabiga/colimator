@@ -130,6 +130,7 @@ fun App(
                                     containerId = (currentScreen as Screen.ContainerDetails).containerId,
                                     profileName = activeProfileRepository.activeProfile.value,
                                     dockerService = dockerService,
+                                    containersViewModel = containersViewModel,
                                     onBack = { currentScreen = Screen.Containers }
                                 )
                                 Screen.Images -> ImagesScreen(imagesViewModel)

@@ -106,4 +106,5 @@ class FakeOnboardingDockerService : DockerService {
     override suspend fun stopContainer(id: String, profileName: String?): CommandResult = CommandResult(0, "", "")
     override suspend fun removeContainer(id: String, profileName: String?): CommandResult = CommandResult(0, "", "")
     override suspend fun removeImage(imageId: String, profileName: String?): CommandResult = CommandResult(0, "", "")
+    override fun streamLogs(id: String, profileName: String?): kotlinx.coroutines.flow.Flow<String> = kotlinx.coroutines.flow.emptyFlow()
 }

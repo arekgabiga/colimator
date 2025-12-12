@@ -41,11 +41,14 @@ fun ContainerDetailsScreen(
     containerId: String,
     profileName: String?,
     dockerService: com.colimator.app.service.DockerService,
+    containersViewModel: com.colimator.app.viewmodel.ContainersViewModel,
     onBack: () -> Unit
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
     var isTerminalConnected by remember { mutableStateOf(hasActiveTerminalSession(containerId)) }
-    val tabs = listOf("Info", "Terminal")
+    
+    // Tabs: Info, Logs, Terminal
+    val tabs = listOf("Info", "Logs", "Terminal")
 
     Scaffold(
         topBar = {
@@ -69,7 +72,8 @@ fun ContainerDetailsScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(title)
                                 // Show indicator when terminal has active session
-                                if (index == 1 && isTerminalConnected) {
+                                // Terminal is now at index 2
+                                if (index == 2 && isTerminalConnected) {
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text("●", color = MaterialTheme.colorScheme.primary)
                                 }
@@ -86,7 +90,11 @@ fun ContainerDetailsScreen(
                         profileName = profileName,
                         dockerService = dockerService
                     )
-                    1 -> TerminalTabContent(
+                    1 -> ContainerLogsTab(
+                        containerId = containerId,
+                        viewModel = containersViewModel
+                    )
+                    2 -> TerminalTabContent(
                         containerId = containerId,
                         profileName = profileName,
                         isConnected = isTerminalConnected,

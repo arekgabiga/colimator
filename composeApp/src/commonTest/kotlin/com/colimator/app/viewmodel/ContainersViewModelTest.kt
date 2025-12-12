@@ -146,6 +146,40 @@ class ContainersViewModelTest {
         
         assertTrue(activeProfileRepository.ackCalled)
     }
+
+    @Test
+    fun testLogStreaming() = runTest {
+        // Start streaming
+        viewModel.startStreamingLogs("1")
+        advanceUntilIdle()
+        
+        // precise timestamp 2023-10-10T10:00:00.000000000Z
+        val log1 = "2023-10-10T10:00:00.000000000Z Log line 1"
+        val log2 = "2023-10-10T10:00:01.000000000Z Log line 2"
+        
+        dockerService.logFlow.emit(log1)
+        dockerService.logFlow.emit(log2)
+        advanceUntilIdle()
+        
+        val logs = viewModel.logs.value
+        assertEquals(2, logs.size)
+        
+        assertEquals("2023-10-10T10:00:00.000000000Z", logs[0].timestamp)
+        assertEquals("Log line 1", logs[0].content)
+        
+        assertEquals("2023-10-10T10:00:01.000000000Z", logs[1].timestamp)
+        assertEquals("Log line 2", logs[1].content)
+        
+        // Stop streaming
+        viewModel.stopStreamingLogs()
+        advanceUntilIdle()
+        
+        // Emit more, should not be collected
+        dockerService.logFlow.emit("Should not appear")
+        advanceUntilIdle()
+        
+        assertEquals(2, viewModel.logs.value.size)
+    }
 }
 
 // Fakes
@@ -193,6 +227,13 @@ class FakeDockerService : DockerService {
 
     override suspend fun removeImage(imageId: String, profileName: String?): CommandResult {
         return CommandResult(0, "", "")
+    }
+
+    // For testing streaming
+    val logFlow = kotlinx.coroutines.flow.MutableSharedFlow<String>()
+
+    override fun streamLogs(id: String, profileName: String?): kotlinx.coroutines.flow.Flow<String> {
+        return logFlow
     }
 }
 

@@ -15,6 +15,18 @@ interface ShellExecutor {
         args: List<String>, 
         timeoutSeconds: Long = 60
     ): CommandResult
+
+    /**
+     * Execute a command and stream its output.
+     * @param command The command to execute
+     * @param args Arguments for the command
+     * @param env Optional environment variables to append
+     */
+    fun executeStream(
+        command: String,
+        args: List<String>,
+        env: Map<String, String> = emptyMap()
+    ): kotlinx.coroutines.flow.Flow<String>
 }
 
 /**

@@ -63,4 +63,11 @@ class FakeDockerService : DockerService {
     override suspend fun inspectContainer(id: String, profileName: String?): com.colimator.app.model.ContainerInspection? {
         return inspectionResult
     }
+    
+    // For testing streaming
+    val logFlow = kotlinx.coroutines.flow.MutableSharedFlow<String>()
+    
+    override fun streamLogs(id: String, profileName: String?): kotlinx.coroutines.flow.Flow<String> {
+        return logFlow
+    }
 }

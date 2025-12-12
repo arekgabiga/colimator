@@ -36,4 +36,10 @@ class MockShellExecutor : ShellExecutor {
         return responses[command to args] 
             ?: CommandResult(-1, "", "No mock response configured for: $command $args")
     }
+
+    override fun executeStream(
+        command: String,
+        args: List<String>,
+        env: Map<String, String>
+    ): kotlinx.coroutines.flow.Flow<String> = kotlinx.coroutines.flow.emptyFlow()
 }
