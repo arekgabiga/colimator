@@ -18,6 +18,7 @@
   - View container details (Status, Ports, Image, ID).
   - **Container Inspection**: Detailed container info with Overview and raw JSON views.
   - **Embedded Terminal**: Direct shell access into running containers via `docker exec`.
+  - **Log Streaming**: Real-time container log viewing with ANSI color support.
 - **Image Management**:
   - List local Docker images.
   - Sort images by name or size.
@@ -26,15 +27,18 @@
   - Native macOS system tray icon (Control app visibility and quick actions).
   - Checks for `colima` and `docker` dependencies on startup.
 - **User Experience**:
+
   - Modern Material Design 3 interface.
   - Developer-focused Dark Mode.
   - Native performance (JVM-based, low RAM overhead).
 
+- **Advanced Configuration**:
+  - GUI editor for Colima profile settings (CPU cores, Memory, Disk size).
+  - Visual feedback during profile start/stop operations.
+
 ### Planned Features
 
 - **Volume Management**: List and manage Docker volumes.
-- **Log Streaming**: Real-time container log viewing window.
-- **Advanced Configuration**: GUI editor for Colima settings (CPU, RAM, Disk).
 
 ## 📸 Screenshots
 
@@ -58,9 +62,17 @@ _Profiles: Switch between Colima contexts_
 
 _Info: Detailed container inspection with Overview and Raw JSON views_
 
+<img src="docs/images/logs.png" width="800" alt="Container Logs" />
+
+_Logs: Real-time container log streaming with ANSI color support_
+
 <img src="docs/images/shell.png" width="800" alt="Embedded Terminal" />
 
 _Shell: Embedded terminal for direct container access_
+
+<img src="docs/images/configuration.png" width="800" alt="Profile Configuration" />
+
+_Configuration: Customize CPU, memory, and disk settings for Colima profiles_
 
 ## 🛠 Tech Stack
 
