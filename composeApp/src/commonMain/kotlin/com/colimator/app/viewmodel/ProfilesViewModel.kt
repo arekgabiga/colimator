@@ -22,16 +22,22 @@ data class ProfilesState(
     val showCreateDialog: Boolean = false,
     val createConfig: ProfileCreateConfig = ProfileCreateConfig(
         name = "",
-        cpuCores = 2,
-        memoryGb = 2,
-        diskGb = 60,
+        cpu = 2,
+        memory = 2,
+        disk = 60,
         kubernetes = false,
         vmType = VmType.VZ,
         mountType = MountType.VIRTIOFS
     ),
     val isCreating: Boolean = false,
     val profileToDelete: Profile? = null,
-    val activeProfileName: String? = null
+    val activeProfileName: String? = null,
+    val editingProfile: Profile? = null,
+    val editingConfig: com.colimator.app.domain.ColimaConfig? = null,
+    val hostMaxCpu: Int = 8,
+    val hostMaxMemory: Int = 16,
+    val startingProfileName: String? = null,
+    val stoppingProfileName: String? = null
 )
 
 /**
@@ -52,6 +58,13 @@ class ProfilesViewModel(
                 _state.update { it.copy(activeProfileName = profileName) }
             }
         }
+        
+        // Load host specs
+        viewModelScope.launch {
+            val specs = com.colimator.app.service.ConfigurationService.getHostHardwareSpecs()
+            _state.update { it.copy(hostMaxCpu = specs.cpuCount, hostMaxMemory = specs.memoryGib) }
+        }
+
         refreshProfiles()
     }
     
@@ -78,9 +91,9 @@ class ProfilesViewModel(
                 showCreateDialog = true,
                 createConfig = ProfileCreateConfig(
                     name = "",
-                    cpuCores = 2,
-                    memoryGb = 2,
-                    diskGb = 60,
+                    cpu = 2,
+                    memory = 2,
+                    disk = 60,
                     kubernetes = false,
                     vmType = VmType.VZ,
                     mountType = MountType.VIRTIOFS
@@ -132,7 +145,7 @@ class ProfilesViewModel(
     
     fun startProfile(profile: Profile) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            _state.update { it.copy(isLoading = true, error = null, startingProfileName = profile.name) }
             try {
                 val result = colimaService.start(profile.name)
                 if (!result.isSuccess()) {
@@ -143,13 +156,19 @@ class ProfilesViewModel(
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message ?: "Failed to start profile") }
             }
-            refreshProfiles()
+            // Fetch new profiles and clear the starting flag together
+            try {
+                val profiles = colimaService.listProfiles()
+                _state.update { it.copy(profiles = profiles, isLoading = false, startingProfileName = null) }
+            } catch (e: Exception) {
+                _state.update { it.copy(isLoading = false, startingProfileName = null) }
+            }
         }
     }
     
     fun stopProfile(profile: Profile) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            _state.update { it.copy(isLoading = true, error = null, stoppingProfileName = profile.name) }
             try {
                 val result = colimaService.stop(profile.name)
                 if (!result.isSuccess()) {
@@ -160,7 +179,13 @@ class ProfilesViewModel(
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message ?: "Failed to stop profile") }
             }
-            refreshProfiles()
+            // Fetch new profiles and clear the stopping flag together
+            try {
+                val profiles = colimaService.listProfiles()
+                _state.update { it.copy(profiles = profiles, isLoading = false, stoppingProfileName = null) }
+            } catch (e: Exception) {
+                _state.update { it.copy(isLoading = false, stoppingProfileName = null) }
+            }
         }
     }
     
@@ -207,5 +232,53 @@ class ProfilesViewModel(
     
     fun clearError() {
         _state.update { it.copy(error = null) }
+    }
+
+    fun openConfigDialog(profile: Profile) {
+        viewModelScope.launch {
+            val config = com.colimator.app.service.ConfigurationService.loadConfig(profile.name)
+            _state.update { 
+                it.copy(
+                    editingProfile = profile, 
+                    editingConfig = config
+                ) 
+            }
+        }
+    }
+
+    fun closeConfigDialog() {
+        _state.update { it.copy(editingProfile = null, editingConfig = null) }
+    }
+
+    fun saveConfig(config: com.colimator.app.domain.ColimaConfig, shouldRestart: Boolean = false) {
+        val profile = _state.value.editingProfile ?: return
+        
+        viewModelScope.launch {
+            try {
+                com.colimator.app.service.ConfigurationService.saveConfig(profile.name, config)
+                closeConfigDialog()
+                
+                if (shouldRestart && profile.status == VmStatus.Running) {
+                    _state.update { it.copy(isLoading = true, error = null) }
+                    val stopResult = colimaService.stop(profile.name)
+                    if (stopResult.isSuccess()) {
+                        val startResult = colimaService.start(profile.name)
+                        if (!startResult.isSuccess()) {
+                            _state.update { 
+                                it.copy(error = startResult.stderr.ifBlank { "Failed to restart profile" }) 
+                            }
+                        }
+                    } else {
+                        _state.update { 
+                            it.copy(error = stopResult.stderr.ifBlank { "Failed to stop profile for restart" }) 
+                        }
+                    }
+                }
+                
+                refreshProfiles()
+            } catch (e: Exception) {
+                _state.update { it.copy(error = "Failed to save config: ${e.message}") }
+            }
+        }
     }
 }

@@ -29,9 +29,9 @@ data class Profile(
  */
 data class ProfileCreateConfig(
     val name: String,
-    val cpuCores: Int = 2,        // Colima default: 2
-    val memoryGb: Int = 2,        // Colima default: 2 GiB
-    val diskGb: Int = 60,         // Colima default: 60 GiB
+    val cpu: Int = 2,        // Colima default: 2
+    val memory: Int = 2,     // Colima default: 2 GiB
+    val disk: Int = 60,      // Colima default: 60 GiB
     val kubernetes: Boolean = false,
     val vmType: VmType = VmType.VZ,
     val mountType: MountType = MountType.VIRTIOFS

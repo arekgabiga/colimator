@@ -42,6 +42,7 @@ kotlin {
                 implementation(libs.jediterm.pty)
                 implementation(libs.jediterm.typeahead)
                 implementation(libs.pty4j)
+                implementation("org.yaml:snakeyaml:2.3")
             }
         }
     }

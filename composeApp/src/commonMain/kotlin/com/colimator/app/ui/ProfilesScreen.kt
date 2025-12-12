@@ -7,15 +7,21 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.VerticalScrollbar
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -102,12 +108,17 @@ fun ProfilesScreen(viewModel: ProfilesViewModel) {
                 ) {
                     items(state.profiles) { profile ->
                         val isActiveProfile = (state.activeProfileName ?: "default") == profile.name
+                        val isStarting = state.startingProfileName == profile.name
+                        val isStopping = state.stoppingProfileName == profile.name
                         ProfileCard(
                             profile = profile,
                             isActiveProfile = isActiveProfile,
+                            isStarting = isStarting,
+                            isStopping = isStopping,
                             onStart = { viewModel.startProfile(profile) },
                             onStop = { viewModel.stopProfile(profile) },
                             onSwitch = { viewModel.switchToProfile(profile) },
+                            onConfigure = { viewModel.openConfigDialog(profile) },
                             onDelete = { viewModel.confirmDeleteProfile(profile) },
                             isLoading = state.isLoading
                         )
@@ -131,11 +142,27 @@ fun ProfilesScreen(viewModel: ProfilesViewModel) {
                 Text(error)
             }
         }
+
+        // Advanced Config Dialog
+        state.editingProfile?.let { profile ->
+            state.editingConfig?.let { config ->
+                AdvancedConfigDialog(
+                    initialConfig = config,
+                    maxCpu = state.hostMaxCpu,
+                    maxMemory = state.hostMaxMemory,
+                    isExistingProfile = true,
+                    onDismiss = { viewModel.closeConfigDialog() },
+                    onSave = { newConfig -> viewModel.saveConfig(newConfig, shouldRestart = true) }
+                )
+            }
+        }
         
         // Create dialog
         if (state.showCreateDialog) {
             CreateProfileDialog(
                 config = state.createConfig,
+                maxCpu = state.hostMaxCpu,
+                maxMemory = state.hostMaxMemory,
                 onConfigChange = { viewModel.updateCreateConfig(it) },
                 onDismiss = { viewModel.hideCreateDialog() },
                 onCreate = { viewModel.createProfile() },
@@ -190,9 +217,12 @@ fun ProfilesScreen(viewModel: ProfilesViewModel) {
 private fun ProfileCard(
     profile: Profile,
     isActiveProfile: Boolean,
+    isStarting: Boolean,
+    isStopping: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
     onSwitch: () -> Unit,
+    onConfigure: () -> Unit,
     onDelete: () -> Unit,
     isLoading: Boolean
 ) {
@@ -245,7 +275,11 @@ private fun ProfileCard(
                             }
                         }
                         Text(
-                            text = profile.status.name,
+                            text = when {
+                                isStarting -> "Starting..."
+                                isStopping -> "Stopping..."
+                                else -> profile.status.name
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -257,7 +291,7 @@ private fun ProfileCard(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Slot 1: Make active button - always takes space for consistent layout
+                    // Slot 1: Make active button
                     Box(modifier = Modifier.width(90.dp), contentAlignment = Alignment.Center) {
                         if (profile.status == VmStatus.Running && !isActiveProfile) {
                             TextButton(
@@ -269,15 +303,23 @@ private fun ProfileCard(
                             }
                         }
                     }
+
+                    // Slot 2: Settings (Gear)
+                    IconButton(
+                        onClick = onConfigure,
+                        enabled = !isLoading
+                    ) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    }
                     
-                    // Slot 2: Start/Stop button
+                    // Slot 3: Start/Stop button
                     if (profile.status == VmStatus.Running) {
                         IconButton(
                             onClick = onStop,
                             enabled = !isLoading
                         ) {
                             Icon(
-                                Icons.Default.Close, 
+                                Icons.Default.Stop, 
                                 contentDescription = "Stop",
                                 tint = MaterialTheme.colorScheme.error
                             )
@@ -336,231 +378,200 @@ private fun ProfileCard(
 @Composable
 private fun CreateProfileDialog(
     config: ProfileCreateConfig,
+    maxCpu: Int,
+    maxMemory: Int,
     onConfigChange: (ProfileCreateConfig) -> Unit,
     onDismiss: () -> Unit,
     onCreate: () -> Unit,
     isCreating: Boolean
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Create New Profile") },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 400.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Profile name
-                OutlinedTextField(
-                    value = config.name,
-                    onValueChange = { onConfigChange(config.copy(name = it)) },
-                    label = { Text("Profile Name") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    enabled = !isCreating
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.large,
+            tonalElevation = 2.dp,
+            modifier = Modifier.width(500.dp)
+        ) {
+            Box(modifier = Modifier.heightIn(max = 700.dp)) {
+                val scrollState = rememberScrollState()
+                Column(
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .verticalScroll(scrollState)
+                        .padding(end = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Create New Profile",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+
+                    HorizontalDivider()
+
+                    // Profile name
+                    OutlinedTextField(
+                        value = config.name,
+                        onValueChange = { onConfigChange(config.copy(name = it)) },
+                        label = { Text("Profile Name") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        enabled = !isCreating
+                    )
+                    
+                    
+                    HorizontalDivider()
+                    
+                    Text(
+                        text = "Configuration",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                        // CPU
+                        ResourceSlider(
+                            label = "CPU Cores",
+                            value = config.cpu,
+                            rawMax = maxCpu,
+                            onValueChange = { onConfigChange(config.copy(cpu = it)) }
+                        )
+                        
+                        // Memory
+                        ResourceSlider(
+                            label = "Memory (GB)",
+                            value = config.memory,
+                            rawMax = maxMemory,
+                            onValueChange = { onConfigChange(config.copy(memory = it)) }
+                        )
+                        
+                        // Disk
+                        OutlinedTextField(
+                            value = config.disk.toString(),
+                            onValueChange = { 
+                                val newSize = it.toIntOrNull()
+                                // Only allow reasonably positive values
+                                if (newSize != null && newSize > 0) {
+                                    onConfigChange(config.copy(disk = newSize))
+                                }
+                            },
+                            label = { Text("Disk Size (GiB)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            supportingText = { Text("Min 10 GiB") },
+                            enabled = !isCreating
+                        )
+                        
+                        // VM Type dropdown
+                        var vmTypeExpanded by remember { mutableStateOf(false) }
+                        ExposedDropdownMenuBox(
+                            expanded = vmTypeExpanded,
+                            onExpandedChange = { vmTypeExpanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = config.vmType.name,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("VM Type") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = vmTypeExpanded) },
+                                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                enabled = !isCreating
+                            )
+                            ExposedDropdownMenu(
+                                expanded = vmTypeExpanded,
+                                onDismissRequest = { vmTypeExpanded = false }
+                            ) {
+                                VmType.entries.forEach { type ->
+                                    DropdownMenuItem(
+                                        text = { Text(type.name) },
+                                        onClick = {
+                                            onConfigChange(config.copy(vmType = type))
+                                            vmTypeExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        
+                        // Mount Type dropdown
+                        var mountTypeExpanded by remember { mutableStateOf(false) }
+                        ExposedDropdownMenuBox(
+                            expanded = mountTypeExpanded,
+                            onExpandedChange = { mountTypeExpanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = config.mountType.name,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Mount Type") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = mountTypeExpanded) },
+                                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                enabled = !isCreating
+                            )
+                            ExposedDropdownMenu(
+                                expanded = mountTypeExpanded,
+                                onDismissRequest = { mountTypeExpanded = false }
+                            ) {
+                                MountType.entries.forEach { type ->
+                                    DropdownMenuItem(
+                                        text = { Text(type.name) },
+                                        onClick = {
+                                            onConfigChange(config.copy(mountType = type))
+                                            mountTypeExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        
+                        // Kubernetes toggle
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Enable Kubernetes")
+                            Switch(
+                                checked = config.kubernetes,
+                                onCheckedChange = { onConfigChange(config.copy(kubernetes = it)) },
+                                enabled = !isCreating
+                            )
+                        }
+
+                    HorizontalDivider()
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = onDismiss,
+                            enabled = !isCreating
+                        ) {
+                            Text("Cancel")
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            onClick = onCreate,
+                            enabled = !isCreating && config.name.isNotBlank()
+                        ) {
+                            if (isCreating) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            } else {
+                                Text("Create & Start")
+                            }
+                        }
+                    }
+                }
+                VerticalScrollbar(
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                    adapter = rememberScrollbarAdapter(scrollState),
+                    style = rememberVisibleScrollbarStyle()
                 )
-                
-                // CPU
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("CPU Cores")
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = { 
-                                if (config.cpuCores > 1) onConfigChange(config.copy(cpuCores = config.cpuCores - 1))
-                            },
-                            enabled = !isCreating && config.cpuCores > 1,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Text("-")
-                        }
-                        Text("${config.cpuCores}", modifier = Modifier.width(24.dp))
-                        IconButton(
-                            onClick = { 
-                                if (config.cpuCores < 16) onConfigChange(config.copy(cpuCores = config.cpuCores + 1))
-                            },
-                            enabled = !isCreating && config.cpuCores < 16,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Text("+")
-                        }
-                    }
-                }
-                
-                // Memory
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Memory (GB)")
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = { 
-                                if (config.memoryGb > 1) onConfigChange(config.copy(memoryGb = config.memoryGb - 1))
-                            },
-                            enabled = !isCreating && config.memoryGb > 1,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Text("-")
-                        }
-                        Text("${config.memoryGb}", modifier = Modifier.width(24.dp))
-                        IconButton(
-                            onClick = { 
-                                if (config.memoryGb < 64) onConfigChange(config.copy(memoryGb = config.memoryGb + 1))
-                            },
-                            enabled = !isCreating && config.memoryGb < 64,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Text("+")
-                        }
-                    }
-                }
-                
-                // Disk
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Disk (GB)")
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = { 
-                                if (config.diskGb > 10) onConfigChange(config.copy(diskGb = config.diskGb - 10))
-                            },
-                            enabled = !isCreating && config.diskGb > 10,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Text("-")
-                        }
-                        Text("${config.diskGb}", modifier = Modifier.width(32.dp))
-                        IconButton(
-                            onClick = { 
-                                if (config.diskGb < 500) onConfigChange(config.copy(diskGb = config.diskGb + 10))
-                            },
-                            enabled = !isCreating && config.diskGb < 500,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Text("+")
-                        }
-                    }
-                }
-                
-                // VM Type dropdown
-                var vmTypeExpanded by remember { mutableStateOf(false) }
-                ExposedDropdownMenuBox(
-                    expanded = vmTypeExpanded,
-                    onExpandedChange = { vmTypeExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = config.vmType.name,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("VM Type") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = vmTypeExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth(),
-                        enabled = !isCreating
-                    )
-                    ExposedDropdownMenu(
-                        expanded = vmTypeExpanded,
-                        onDismissRequest = { vmTypeExpanded = false }
-                    ) {
-                        VmType.entries.forEach { type ->
-                            DropdownMenuItem(
-                                text = { Text(type.name) },
-                                onClick = {
-                                    onConfigChange(config.copy(vmType = type))
-                                    vmTypeExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-                
-                // Mount Type dropdown
-                var mountTypeExpanded by remember { mutableStateOf(false) }
-                ExposedDropdownMenuBox(
-                    expanded = mountTypeExpanded,
-                    onExpandedChange = { mountTypeExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = config.mountType.name,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Mount Type") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = mountTypeExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth(),
-                        enabled = !isCreating
-                    )
-                    ExposedDropdownMenu(
-                        expanded = mountTypeExpanded,
-                        onDismissRequest = { mountTypeExpanded = false }
-                    ) {
-                        MountType.entries.forEach { type ->
-                            DropdownMenuItem(
-                                text = { Text(type.name) },
-                                onClick = {
-                                    onConfigChange(config.copy(mountType = type))
-                                    mountTypeExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-                
-                // Kubernetes toggle
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Enable Kubernetes")
-                    Switch(
-                        checked = config.kubernetes,
-                        onCheckedChange = { onConfigChange(config.copy(kubernetes = it)) },
-                        enabled = !isCreating
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onCreate,
-                enabled = !isCreating && config.name.isNotBlank()
-            ) {
-                if (isCreating) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Create & Start")
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                enabled = !isCreating
-            ) {
-                Text("Cancel")
             }
         }
-    )
+    }
 }
 

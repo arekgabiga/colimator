@@ -77,9 +77,9 @@ class FakeColimaService : ColimaService {
                     name = target, 
                     status = VmStatus.Running, 
                     isActive = true,
-                    cpuCores = config?.cpuCores ?: 2,
-                    memoryBytes = (config?.memoryGb ?: 2.0).toLong() * 1024 * 1024 * 1024,
-                    diskBytes = (config?.diskGb ?: 60.0).toLong() * 1024 * 1024 * 1024
+                    cpuCores = config?.cpu ?: 2,
+                    memoryBytes = (config?.memory ?: 2).toLong() * 1024 * 1024 * 1024,
+                    diskBytes = (config?.disk ?: 60).toLong() * 1024 * 1024 * 1024
                 )
             )
         }

@@ -143,11 +143,11 @@ class ColimaServiceImpl(private val shell: ShellExecutor) : ColimaService {
             }
             config?.let { cfg ->
                 add("--cpu")
-                add(cfg.cpuCores.toString())
+                add(cfg.cpu.toString())
                 add("--memory")
-                add(cfg.memoryGb.toString())
+                add(cfg.memory.toString())
                 add("--disk")
-                add(cfg.diskGb.toString())
+                add(cfg.disk.toString())
                 add("--vm-type")
                 add(cfg.vmType.cliValue)
                 add("--mount-type")
